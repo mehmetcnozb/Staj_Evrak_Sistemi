@@ -54,6 +54,29 @@ public abstract class User
 
     public DateTime CreatedAt { get; internal set; }
 
+    // Hesap kilidi: hatalı giriş sayısı ve kilidin bitiş zamanı (UTC)
+    public int FailedLoginAttempts { get; internal set; }
+
+    public DateTime? LockoutEnd { get; internal set; }
+
+    public bool IsLockedOut(DateTime nowUtc) => LockoutEnd.HasValue && LockoutEnd.Value > nowUtc;
+
+    /// <summary>
+    /// Hatalı girişi sayar; sınıra ulaşılınca hesabı verilen süre kadar kilitler.
+    /// </summary>
+    public void RecordFailedLogin(DateTime nowUtc, int maxAttempts, TimeSpan lockoutDuration)
+    {
+        FailedLoginAttempts++;
+        if (FailedLoginAttempts >= maxAttempts)
+            LockoutEnd = nowUtc.Add(lockoutDuration);
+    }
+
+    public void ResetLoginAttempts()
+    {
+        FailedLoginAttempts = 0;
+        LockoutEnd = null;
+    }
+
     /// <summary>
     /// Parola hash'i dışarıdan okunamaz; yalnızca hash'i hazırlanmış değer atanabilir.
     /// </summary>

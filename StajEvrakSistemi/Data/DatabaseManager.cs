@@ -50,7 +50,33 @@ public class DatabaseManager
             command.ExecuteNonQuery();
         }
 
+        // CORE-1'de oluşturulmuş eski veritabanlarına kilit sütunlarını ekler.
+        EnsureColumn(connection, transaction, "Users", "FailedLoginAttempts", "INTEGER NOT NULL DEFAULT 0");
+        EnsureColumn(connection, transaction, "Users", "LockoutEnd", "TEXT");
+
         transaction.Commit();
+    }
+
+    private static void EnsureColumn(
+        SqliteConnection connection, SqliteTransaction transaction, string table, string column, string definition)
+    {
+        using (var check = connection.CreateCommand())
+        {
+            check.Transaction = transaction;
+            check.CommandText = $"PRAGMA table_info({table});";
+
+            using var reader = check.ExecuteReader();
+            while (reader.Read())
+            {
+                if (string.Equals(reader.GetString(1), column, StringComparison.OrdinalIgnoreCase))
+                    return;
+            }
+        }
+
+        using var alter = connection.CreateCommand();
+        alter.Transaction = transaction;
+        alter.CommandText = $"ALTER TABLE {table} ADD COLUMN {column} {definition};";
+        alter.ExecuteNonQuery();
     }
 
     private const string CreateUsersTable = """
@@ -63,7 +89,9 @@ public class DatabaseManager
             Phone           TEXT,
             PasswordHash    TEXT    NOT NULL,
             Role            TEXT    NOT NULL CHECK (Role IN ('Student', 'Admin', 'Commission')),
-            CreatedAt       TEXT    NOT NULL DEFAULT (datetime('now'))
+            CreatedAt       TEXT    NOT NULL DEFAULT (datetime('now')),
+            FailedLoginAttempts INTEGER NOT NULL DEFAULT 0,
+            LockoutEnd      TEXT
         );
         """;
 
