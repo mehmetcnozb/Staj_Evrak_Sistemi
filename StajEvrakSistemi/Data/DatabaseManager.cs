@@ -1,0 +1,99 @@
+using Microsoft.Data.Sqlite;
+
+namespace StajEvrakSistemi.Data;
+
+/// <summary>
+/// SQLite bağlantısını yönetir ve uygulama ilk çalıştığında temel tabloları oluşturur.
+/// </summary>
+public class DatabaseManager
+{
+    public const string DefaultDatabaseFile = "staj_evrak.db";
+
+    private readonly string _connectionString;
+
+    public DatabaseManager(string databaseFile = DefaultDatabaseFile)
+    {
+        if (string.IsNullOrWhiteSpace(databaseFile))
+            throw new ArgumentException("Veritabanı dosya yolu boş olamaz.", nameof(databaseFile));
+
+        _connectionString = new SqliteConnectionStringBuilder
+        {
+            DataSource = databaseFile,
+            Mode = SqliteOpenMode.ReadWriteCreate,
+            ForeignKeys = true
+        }.ToString();
+    }
+
+    /// <summary>
+    /// Açılmış yeni bir bağlantı döndürür. Çağıran taraf <c>using</c> ile kapatmalıdır.
+    /// </summary>
+    public SqliteConnection GetConnection()
+    {
+        var connection = new SqliteConnection(_connectionString);
+        connection.Open();
+        return connection;
+    }
+
+    /// <summary>
+    /// Tablolar yoksa oluşturur. Birden fazla kez çağrılması güvenlidir.
+    /// </summary>
+    public void InitializeDatabase()
+    {
+        using var connection = GetConnection();
+        using var transaction = connection.BeginTransaction();
+
+        foreach (var sql in new[] { CreateUsersTable, CreateInternshipsTable, CreateDocumentsTable })
+        {
+            using var command = connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandText = sql;
+            command.ExecuteNonQuery();
+        }
+
+        transaction.Commit();
+    }
+
+    private const string CreateUsersTable = """
+        CREATE TABLE IF NOT EXISTS Users (
+            Id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            IdentityNumber  TEXT    NOT NULL UNIQUE,
+            StudentNumber   TEXT    UNIQUE,
+            FullName        TEXT    NOT NULL,
+            Email           TEXT    NOT NULL UNIQUE,
+            Phone           TEXT,
+            PasswordHash    TEXT    NOT NULL,
+            Role            TEXT    NOT NULL CHECK (Role IN ('Student', 'Admin', 'Commission')),
+            CreatedAt       TEXT    NOT NULL DEFAULT (datetime('now'))
+        );
+        """;
+
+    private const string CreateInternshipsTable = """
+        CREATE TABLE IF NOT EXISTS Internships (
+            Id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            StudentId       INTEGER NOT NULL,
+            AcademicYear    TEXT    NOT NULL,
+            StartDate       TEXT    NOT NULL,
+            EndDate         TEXT    NOT NULL,
+            NetWorkDays     INTEGER NOT NULL DEFAULT 0,
+            CompanyName     TEXT    NOT NULL,
+            HasEngineer     INTEGER NOT NULL DEFAULT 0 CHECK (HasEngineer IN (0, 1)),
+            Status          TEXT    NOT NULL DEFAULT 'Pending',
+            GoogleFormUrl   TEXT,
+            FOREIGN KEY (StudentId) REFERENCES Users(Id) ON DELETE CASCADE
+        );
+        """;
+
+    private const string CreateDocumentsTable = """
+        CREATE TABLE IF NOT EXISTS Documents (
+            Id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            InternshipId    INTEGER NOT NULL,
+            DocumentType    TEXT    NOT NULL,
+            FilePath        TEXT    NOT NULL,
+            FileFormat      TEXT    NOT NULL,
+            IsApproved      INTEGER NOT NULL DEFAULT 0 CHECK (IsApproved IN (0, 1)),
+            RejectionReason TEXT,
+            UploadedAt      TEXT    NOT NULL DEFAULT (datetime('now')),
+            FOREIGN KEY (InternshipId) REFERENCES Internships(Id) ON DELETE CASCADE
+        );
+        """;
+}
