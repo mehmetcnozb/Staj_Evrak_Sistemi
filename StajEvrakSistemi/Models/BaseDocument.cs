@@ -89,5 +89,32 @@ public abstract class BaseDocument
 
     protected virtual bool FileExists() => File.Exists(FilePath);
 
+    protected bool HasValidFileSize(long maxBytes)
+    {
+        long size = new FileInfo(FilePath).Length;
+        return size > 0 && size <= maxBytes;
+    }
+
+    /// <summary>
+    /// Dosyanın ilk baytlarının uzantısıyla uyuştuğunu kontrol eder
+    /// (ör. uzantısı .pdf olan bir resim dosyası reddedilir).
+    /// </summary>
+    protected bool HasMatchingFileSignature()
+    {
+        byte[]? expected = FileFormat switch
+        {
+            "pdf" => "%PDF-"u8.ToArray(),
+            "jpg" or "jpeg" => new byte[] { 0xFF, 0xD8, 0xFF },
+            "png" => new byte[] { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A },
+            _ => null
+        };
+        if (expected is null)
+            return false;
+
+        using var stream = File.OpenRead(FilePath);
+        var header = new byte[expected.Length];
+        return stream.Read(header, 0, header.Length) == header.Length && header.SequenceEqual(expected);
+    }
+
     public override string ToString() => $"{GetDisplayName()} - {Path.GetFileName(FilePath)}";
 }

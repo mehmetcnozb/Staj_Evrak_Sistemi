@@ -8,5 +8,6 @@ public enum DocumentType
     InternshipApplicationForm,  // Staj Başvuru Formu
     InsuranceDocument,          // SGK Sigorta Belgesi
     InternshipReport,           // Staj Defteri / Raporu
-    EvaluationForm              // İşyeri Değerlendirme Formu
+    EvaluationForm,             // İşyeri Değerlendirme Formu
+    AcceptanceLetter            // Kurum Staj Kabul Yazısı
 }
