@@ -10,5 +10,6 @@ public enum Permission
     ViewAllInternships,
     ReviewDocument,
     ApproveInternship,
-    ManageUsers
+    ManageUsers,
+    ImportDataset
 }

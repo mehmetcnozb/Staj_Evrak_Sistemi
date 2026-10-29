@@ -42,7 +42,10 @@ public class DatabaseManager
         using var connection = GetConnection();
         using var transaction = connection.BeginTransaction();
 
-        foreach (var sql in new[] { CreateUsersTable, CreateInternshipsTable, CreateDocumentsTable })
+        foreach (var sql in new[]
+                 {
+                     CreateUsersTable, CreateInternshipsTable, CreateDocumentsTable, CreateOfficialStudentRecordsTable
+                 })
         {
             using var command = connection.CreateCommand();
             command.Transaction = transaction;
@@ -122,6 +125,26 @@ public class DatabaseManager
             RejectionReason TEXT,
             UploadedAt      TEXT    NOT NULL DEFAULT (datetime('now')),
             FOREIGN KEY (InternshipId) REFERENCES Internships(Id) ON DELETE CASCADE
+        );
+        """;
+
+    // Admin'in yüklediği resmi öğrenci/staj veri seti.
+    // Bir öğrencinin bir öğretim yılında yalnızca bir kaydı olabilir.
+    private const string CreateOfficialStudentRecordsTable = """
+        CREATE TABLE IF NOT EXISTS OfficialStudentRecords (
+            Id               INTEGER PRIMARY KEY AUTOINCREMENT,
+            StudentNumber    TEXT    NOT NULL,
+            IdentityNumber   TEXT    NOT NULL,
+            FullName         TEXT    NOT NULL,
+            Department       TEXT    NOT NULL,
+            AcademicYear     TEXT    NOT NULL,
+            InternshipStatus TEXT    NOT NULL
+                CHECK (InternshipStatus IN ('NotStarted', 'InProgress', 'Completed', 'Failed')),
+            ImportedAt       TEXT    NOT NULL DEFAULT (datetime('now')),
+            ImportedBy       INTEGER,
+            UNIQUE (StudentNumber, AcademicYear),
+            UNIQUE (IdentityNumber, AcademicYear),
+            FOREIGN KEY (ImportedBy) REFERENCES Users(Id) ON DELETE SET NULL
         );
         """;
 }

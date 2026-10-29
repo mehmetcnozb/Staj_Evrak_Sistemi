@@ -22,7 +22,8 @@ public static class RolePermissions
             {
                 Permission.ViewAllInternships,
                 Permission.ReviewDocument,
-                Permission.ManageUsers
+                Permission.ManageUsers,
+                Permission.ImportDataset
             },
             [UserRole.Commission] = new HashSet<Permission>
             {
