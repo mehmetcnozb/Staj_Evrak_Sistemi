@@ -38,6 +38,19 @@ public class StatusWorkflowEngine
             [ApplicationStatus.Completed] = Permission.ApproveInternship
         };
 
+    // Öğrencinin başvurusunu ve evraklarını değiştirebildiği / silebildiği statüler.
+    private static readonly HashSet<ApplicationStatus> StudentEditableStatuses = new()
+    {
+        ApplicationStatus.Uploaded,
+        ApplicationStatus.RevisionRequired
+    };
+
+    private enum ModificationKind
+    {
+        Update,
+        Delete
+    }
+
     private readonly DatabaseManager _database;
     private readonly Func<DateTime> _utcNow;
 
@@ -73,6 +86,46 @@ public class StatusWorkflowEngine
         ApplicationStatus.Completed => "Tamamlandı",
         _ => status.ToString()
     };
+
+    /// <summary>
+    /// Başvuru ve evrakları bu statüdeyken bu kullanıcı tarafından güncellenebilir/silinebilir mi?
+    /// Öğrenci (ROLE_STUDENT) yalnızca Yüklendi ve Revizyon Gerekli statüsünde değişiklik yapabilir;
+    /// İnceleniyor, Reddedildi ve Tamamlandı statülerinde başvuru öğrenci için kilitlidir.
+    /// Admin (ROLE_ADMIN) Tamamlandı dahil her statüde güncelleyebilir ve silebilir.
+    /// Komisyon içerik değiştirmez, yalnızca statü değiştirir.
+    /// </summary>
+    public bool CanModifyOrDelete(ApplicationStatus currentStatus, User currentUser)
+    {
+        if (currentUser is null)
+            return false;
+
+        return currentUser.Role switch
+        {
+            UserRole.Student => StudentEditableStatuses.Contains(currentStatus),
+            UserRole.Admin => true,
+            _ => false
+        };
+    }
+
+    /// <summary>
+    /// Başvuru veya evrakı üzerinde güncelleme yapılmadan önce çağrılır; izin yoksa istisna fırlatır.
+    /// </summary>
+    /// <exception cref="LoginRequiredException">Kullanıcı yok.</exception>
+    /// <exception cref="ForbiddenAccessException">Başkasının başvurusu ya da içerik değiştiremeyen rol.</exception>
+    /// <exception cref="KeyNotFoundException">Başvuru bulunamadı.</exception>
+    /// <exception cref="InvalidOperationException">Başvurunun statüsü güncellemeye izin vermiyor.</exception>
+    public void ValidateUpdateOperation(int applicationId, User currentUser) =>
+        ValidateModification(applicationId, currentUser, ModificationKind.Update);
+
+    /// <summary>
+    /// Başvuru veya evrakı silinmeden önce çağrılır; izin yoksa istisna fırlatır.
+    /// </summary>
+    /// <exception cref="LoginRequiredException">Kullanıcı yok.</exception>
+    /// <exception cref="ForbiddenAccessException">Başkasının başvurusu ya da içerik değiştiremeyen rol.</exception>
+    /// <exception cref="KeyNotFoundException">Başvuru bulunamadı.</exception>
+    /// <exception cref="InvalidOperationException">Başvurunun statüsü silmeye izin vermiyor.</exception>
+    public void ValidateDeleteOperation(int applicationId, User currentUser) =>
+        ValidateModification(applicationId, currentUser, ModificationKind.Delete);
 
     /// <summary>
     /// Başvurunun statüsünü değiştirir ve geçişi kaydeder.
@@ -185,6 +238,47 @@ public class StatusWorkflowEngine
             });
         }
         return history;
+    }
+
+    private void ValidateModification(int applicationId, User currentUser, ModificationKind kind)
+    {
+        string action = kind == ModificationKind.Update ? "güncellenemez" : "silinemez";
+
+        if (currentUser is null)
+            throw new LoginRequiredException("Başvuru üzerinde değişiklik yapmak için giriş yapmalısınız.");
+
+        using var connection = _database.GetConnection();
+        using var transaction = connection.BeginTransaction();
+
+        EnsureUserInDatabase(connection, transaction, currentUser);
+
+        var application = LoadApplication(connection, transaction, applicationId)
+            ?? throw new KeyNotFoundException($"#{applicationId} numaralı staj başvurusu bulunamadı.");
+
+        if (currentUser.Role is not (UserRole.Student or UserRole.Admin))
+            throw new ForbiddenAccessException(
+                $"403 Yetkisiz Erişim: {RolePermissions.ToRoleName(currentUser.Role)} rolü başvuru içeriğini değiştiremez; " +
+                "yalnızca statüsünü değiştirebilir.");
+
+        if (currentUser.Role == UserRole.Student && application.StudentId != currentUser.Id)
+            throw new ForbiddenAccessException(
+                "403 Yetkisiz Erişim: Yalnızca kendi staj başvurunuz ve evraklarınız üzerinde değişiklik yapabilirsiniz.");
+
+        if (CanModifyOrDelete(application.Status, currentUser))
+            return;
+
+        string statusName = GetDisplayName(application.Status);
+        throw new InvalidOperationException(application.Status switch
+        {
+            ApplicationStatus.Completed or ApplicationStatus.Rejected =>
+                $"'{statusName}' statüsündeki başvuru ve evrakları öğrenci tarafından {action}; " +
+                "değişiklik için yönetici ile iletişime geçin.",
+            ApplicationStatus.UnderReview =>
+                $"Başvuru '{statusName}' statüsündeyken başvuru ve evrakları {action}. " +
+                "Değişiklik yalnızca 'Yüklendi' veya 'Revizyon Gerekli' statüsünde yapılabilir.",
+            _ =>
+                $"'{statusName}' statüsündeki başvuru ve evrakları {action}."
+        });
     }
 
     private static void EnsureAuthorized(User user, ApplicationStatus newStatus, ApplicationInfo application)

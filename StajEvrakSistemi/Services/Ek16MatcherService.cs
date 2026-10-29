@@ -67,6 +67,32 @@ public class Ek16MatcherService
         return results;
     }
 
+    /// <summary>
+    /// Başvuruya girilen bilgileri (öğrenci no, kimlik no, ad soyad, bölüm, öğretim yılı), yüklenen
+    /// Ek-16 belgesinden okunan değerlerle karşılaştırır ve belgenin teslime hazır olup olmadığını döndürür.
+    /// Hiçbir şey kaydedilmez; yalnızca karşılaştırma sonucu verilir.
+    /// </summary>
+    /// <exception cref="KeyNotFoundException">Başvuru bulunamadı.</exception>
+    public ScannedDocumentComparisonResult CompareFormWithScannedDocument(int applicationId, ScannedDocumentFields scanned)
+    {
+        ArgumentNullException.ThrowIfNull(scanned);
+
+        using var connection = _database.GetConnection();
+        using var transaction = connection.BeginTransaction();
+
+        var app = LoadApplications(connection, transaction, applicationId).SingleOrDefault()
+            ?? throw new KeyNotFoundException($"#{applicationId} numaralı staj başvurusu bulunamadı.");
+
+        var discrepancies = new List<Ek16Discrepancy>();
+        CompareWithScanned(discrepancies, Ek16Field.StudentNumber, "Öğrenci numarası", app.StudentNumber, scanned.StudentNumber, false);
+        CompareWithScanned(discrepancies, Ek16Field.IdentityNumber, "T.C./Yabancı kimlik numarası", app.IdentityNumber, scanned.IdentityNumber, false);
+        CompareWithScanned(discrepancies, Ek16Field.FullName, "Ad soyad", app.FullName, scanned.FullName, true);
+        CompareWithScanned(discrepancies, Ek16Field.Department, "Bölüm", app.Department, scanned.Department, true);
+        CompareWithScanned(discrepancies, Ek16Field.AcademicYear, "Öğretim yılı (dönem)", app.AcademicYear, scanned.AcademicYear, false);
+
+        return new ScannedDocumentComparisonResult(applicationId, discrepancies, _utcNow());
+    }
+
     private Ek16ComparisonResult Compare(SqliteConnection connection, SqliteTransaction transaction, ApplicationInfo app)
     {
         DateTime now = _utcNow();
@@ -152,6 +178,37 @@ public class Ek16MatcherService
         else if (NormalizeText(applicationValue) != NormalizeText(officialValue))
             discrepancies.Add(new Ek16Discrepancy(field, applicationValue.Trim(), officialValue,
                 $"{label} uyuşmuyor: başvuruda '{applicationValue.Trim()}', Ek-16 listesinde '{officialValue}'."));
+    }
+
+    // Belgeden okunamayan alan da uyuşmazlık sayılır: belge okunaklı değilse teslime hazır olmaz.
+    private static void CompareWithScanned(
+        List<Ek16Discrepancy> discrepancies, Ek16Field field, string label,
+        string? applicationValue, string? scannedValue, bool ignoreCaseAndSpacing)
+    {
+        string? application = applicationValue?.Trim();
+        string? scanned = scannedValue?.Trim();
+
+        if (string.IsNullOrEmpty(scanned))
+        {
+            discrepancies.Add(new Ek16Discrepancy(field, application, null,
+                $"{label} Ek-16 belgesinden okunamadı."));
+            return;
+        }
+
+        if (string.IsNullOrEmpty(application))
+        {
+            discrepancies.Add(new Ek16Discrepancy(field, null, scanned,
+                $"{label} başvuruda girilmemiş; Ek-16 belgesinde '{scanned}'."));
+            return;
+        }
+
+        bool same = ignoreCaseAndSpacing
+            ? NormalizeText(application) == NormalizeText(scanned)
+            : application == scanned;
+
+        if (!same)
+            discrepancies.Add(new Ek16Discrepancy(field, application, scanned,
+                $"{label} uyuşmuyor: başvuruda '{application}', Ek-16 belgesinde '{scanned}'."));
     }
 
     private static string NormalizeText(string value) =>
