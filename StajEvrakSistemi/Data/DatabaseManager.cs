@@ -44,7 +44,8 @@ public class DatabaseManager
 
         foreach (var sql in new[]
                  {
-                     CreateUsersTable, CreateInternshipsTable, CreateDocumentsTable, CreateOfficialStudentRecordsTable
+                     CreateUsersTable, CreateInternshipsTable, CreateDocumentsTable, CreateOfficialStudentRecordsTable,
+                     CreateStatusTransitionLogsTable, CreateStatusTransitionLogsIndex
                  })
         {
             using var command = connection.CreateCommand();
@@ -61,6 +62,14 @@ public class DatabaseManager
         EnsureColumn(connection, transaction, "Internships", "Department", "TEXT");
         EnsureColumn(connection, transaction, "Internships", "Ek16Verified", "INTEGER NOT NULL DEFAULT 0");
         EnsureColumn(connection, transaction, "Internships", "Ek16VerifiedAt", "TEXT");
+
+        // CORE-5 öncesi başvurular 'Pending' statüsüyle oluşuyordu; yeni akışta karşılığı 'Uploaded'.
+        using (var migrateStatus = connection.CreateCommand())
+        {
+            migrateStatus.Transaction = transaction;
+            migrateStatus.CommandText = "UPDATE Internships SET Status = 'Uploaded' WHERE Status = 'Pending';";
+            migrateStatus.ExecuteNonQuery();
+        }
 
         transaction.Commit();
     }
@@ -113,7 +122,8 @@ public class DatabaseManager
             NetWorkDays     INTEGER NOT NULL DEFAULT 0,
             CompanyName     TEXT    NOT NULL,
             HasEngineer     INTEGER NOT NULL DEFAULT 0 CHECK (HasEngineer IN (0, 1)),
-            Status          TEXT    NOT NULL DEFAULT 'Pending',
+            Status          TEXT    NOT NULL DEFAULT 'Uploaded'
+                CHECK (Status IN ('Uploaded', 'UnderReview', 'RevisionRequired', 'Rejected', 'Completed')),
             GoogleFormUrl   TEXT,
             Department      TEXT,
             Ek16Verified    INTEGER NOT NULL DEFAULT 0 CHECK (Ek16Verified IN (0, 1)),
@@ -155,4 +165,22 @@ public class DatabaseManager
             FOREIGN KEY (ImportedBy) REFERENCES Users(Id) ON DELETE SET NULL
         );
         """;
+
+    // Başvuru statü değişim geçmişi; her geçiş bir satır olarak eklenir, güncellenmez.
+    private const string CreateStatusTransitionLogsTable = """
+        CREATE TABLE IF NOT EXISTS StatusTransitionLogs (
+            Id               INTEGER PRIMARY KEY AUTOINCREMENT,
+            ApplicationId    INTEGER NOT NULL,
+            OldStatus        TEXT    NOT NULL,
+            NewStatus        TEXT    NOT NULL,
+            ChangedByUserId  INTEGER,
+            ChangedAt        TEXT    NOT NULL,
+            Note             TEXT,
+            FOREIGN KEY (ApplicationId) REFERENCES Internships(Id) ON DELETE CASCADE,
+            FOREIGN KEY (ChangedByUserId) REFERENCES Users(Id) ON DELETE SET NULL
+        );
+        """;
+
+    private const string CreateStatusTransitionLogsIndex =
+        "CREATE INDEX IF NOT EXISTS IX_StatusTransitionLogs_ApplicationId ON StatusTransitionLogs (ApplicationId);";
 }
