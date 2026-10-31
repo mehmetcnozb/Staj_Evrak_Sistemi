@@ -63,7 +63,23 @@ public abstract class BaseDocument
     /// </summary>
     public abstract bool ValidateDocument();
 
+    /// <summary>
+    /// Belgenin neden doğrulamadan geçmediğini kullanıcıya gösterilecek mesajlarla döndürür
+    /// (boş liste = geçerli). Alt sınıflar ezerek ayrıntılı mesaj verir.
+    /// </summary>
+    public virtual IReadOnlyList<string> GetValidationErrors() =>
+        ValidateDocument() ? Array.Empty<string>() : new[] { "Belge doğrulamadan geçemedi." };
+
     public virtual string GetDisplayName() => DocumentType.ToString();
+
+    /// <summary>
+    /// Veritabanından okunan belgenin onay durumunu geri yükler (doğrulama çalıştırılmaz).
+    /// </summary>
+    internal void RestoreState(bool isApproved, string? rejectionReason)
+    {
+        IsApproved = isApproved;
+        RejectionReason = rejectionReason;
+    }
 
     public void Approve()
     {
@@ -106,6 +122,8 @@ public abstract class BaseDocument
             "pdf" => "%PDF-"u8.ToArray(),
             "jpg" or "jpeg" => new byte[] { 0xFF, 0xD8, 0xFF },
             "png" => new byte[] { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A },
+            "docx" => new byte[] { 0x50, 0x4B, 0x03, 0x04 },                                  // ZIP (Office Open XML)
+            "doc" => new byte[] { 0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1 },           // OLE2 (eski Word)
             _ => null
         };
         if (expected is null)
