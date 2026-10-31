@@ -2,13 +2,13 @@ namespace StajEvrakSistemi.Core;
 
 /// <summary>
 /// Staj başvurusunun statüsü. Internships.Status sütununda metin olarak saklanır.
-/// Akış: Yüklendi -> İnceleniyor -> (Revizyon Gerekli -> Yüklendi ...) -> Tamamlandı / Reddedildi
+/// Şartname akışı: Yüklendi → İnceleniyor → Hatalı/Eksik → (düzeltilip yeniden yüklenir) → Onaylandı → Tamamlandı
 /// </summary>
 public enum ApplicationStatus
 {
-    Uploaded,          // Yüklendi
-    UnderReview,       // İnceleniyor
-    RevisionRequired,  // Revizyon Gerekli
-    Rejected,          // Reddedildi
-    Completed          // Tamamlandı
+    Uploaded,         // Yüklendi
+    UnderReview,      // İnceleniyor
+    FaultyOrMissing,  // Hatalı / Eksik
+    Approved,         // Onaylandı
+    Completed         // Tamamlandı
 }

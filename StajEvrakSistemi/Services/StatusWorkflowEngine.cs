@@ -7,23 +7,20 @@ using StajEvrakSistemi.Models;
 namespace StajEvrakSistemi.Services;
 
 /// <summary>
-/// Staj başvurusunun statü akışını yönetir:
-/// Yüklendi -> İnceleniyor -> Tamamlandı / Reddedildi / Revizyon Gerekli -> Yüklendi ...
+/// Staj başvurusunun statü akışını yönetir (şartname bölüm 5):
+/// Yüklendi → İnceleniyor → Hatalı/Eksik → (düzeltilip yeniden yüklenir) → Onaylandı → Tamamlandı.
 /// Her geçiş yetki ve iş kuralı kontrolünden geçer ve StatusTransitionLogs tablosuna yazılır.
 /// </summary>
 public class StatusWorkflowEngine
 {
-    // Geçerli geçişler. Reddedildi ve Tamamlandı son statülerdir.
+    // Geçerli geçişler. Tamamlandı son statüdür.
     private static readonly IReadOnlyDictionary<ApplicationStatus, ApplicationStatus[]> Transitions =
         new Dictionary<ApplicationStatus, ApplicationStatus[]>
         {
             [ApplicationStatus.Uploaded] = new[] { ApplicationStatus.UnderReview },
-            [ApplicationStatus.UnderReview] = new[]
-            {
-                ApplicationStatus.RevisionRequired, ApplicationStatus.Rejected, ApplicationStatus.Completed
-            },
-            [ApplicationStatus.RevisionRequired] = new[] { ApplicationStatus.Uploaded },
-            [ApplicationStatus.Rejected] = Array.Empty<ApplicationStatus>(),
+            [ApplicationStatus.UnderReview] = new[] { ApplicationStatus.FaultyOrMissing, ApplicationStatus.Approved },
+            [ApplicationStatus.FaultyOrMissing] = new[] { ApplicationStatus.Uploaded },
+            [ApplicationStatus.Approved] = new[] { ApplicationStatus.Completed },
             [ApplicationStatus.Completed] = Array.Empty<ApplicationStatus>()
         };
 
@@ -33,8 +30,8 @@ public class StatusWorkflowEngine
         {
             [ApplicationStatus.Uploaded] = Permission.UploadDocument,
             [ApplicationStatus.UnderReview] = Permission.ReviewDocument,
-            [ApplicationStatus.RevisionRequired] = Permission.ReviewDocument,
-            [ApplicationStatus.Rejected] = Permission.ReviewDocument,
+            [ApplicationStatus.FaultyOrMissing] = Permission.ReviewDocument,
+            [ApplicationStatus.Approved] = Permission.ApproveInternship,
             [ApplicationStatus.Completed] = Permission.ApproveInternship
         };
 
@@ -42,7 +39,7 @@ public class StatusWorkflowEngine
     private static readonly HashSet<ApplicationStatus> StudentEditableStatuses = new()
     {
         ApplicationStatus.Uploaded,
-        ApplicationStatus.RevisionRequired
+        ApplicationStatus.FaultyOrMissing
     };
 
     private enum ModificationKind
@@ -72,27 +69,26 @@ public class StatusWorkflowEngine
     public static bool IsFinal(ApplicationStatus status) => Transitions[status].Length == 0;
 
     /// <summary>
-    /// Ret ve revizyon talebinde gerekçe yazılması zorunludur.
+    /// Hatalı/Eksik işaretlerken hangi alanların hatalı veya eksik olduğunu belirten gerekçe yazılması zorunludur.
     /// </summary>
     public static bool RequiresNote(ApplicationStatus targetStatus) =>
-        targetStatus is ApplicationStatus.RevisionRequired or ApplicationStatus.Rejected;
+        targetStatus is ApplicationStatus.FaultyOrMissing;
 
     public static string GetDisplayName(ApplicationStatus status) => status switch
     {
         ApplicationStatus.Uploaded => "Yüklendi",
         ApplicationStatus.UnderReview => "İnceleniyor",
-        ApplicationStatus.RevisionRequired => "Revizyon Gerekli",
-        ApplicationStatus.Rejected => "Reddedildi",
+        ApplicationStatus.FaultyOrMissing => "Hatalı / Eksik",
+        ApplicationStatus.Approved => "Onaylandı",
         ApplicationStatus.Completed => "Tamamlandı",
         _ => status.ToString()
     };
 
     /// <summary>
     /// Başvuru ve evrakları bu statüdeyken bu kullanıcı tarafından güncellenebilir/silinebilir mi?
-    /// Öğrenci (ROLE_STUDENT) yalnızca Yüklendi ve Revizyon Gerekli statüsünde değişiklik yapabilir;
-    /// İnceleniyor, Reddedildi ve Tamamlandı statülerinde başvuru öğrenci için kilitlidir.
-    /// Admin (ROLE_ADMIN) Tamamlandı dahil her statüde güncelleyebilir ve silebilir.
-    /// Komisyon içerik değiştirmez, yalnızca statü değiştirir.
+    /// Öğrenci (ROLE_STUDENT) yalnızca Yüklendi ve Hatalı/Eksik statüsünde değişiklik yapabilir;
+    /// İnceleniyor, Onaylandı ve Tamamlandı statülerinde başvuru öğrenci için kilitlidir.
+    /// Admin (ROLE_ADMIN) Tamamlandı dahil her statüde güncelleyebilir ve silebilir (hocanın 3. cevabı).
     /// </summary>
     public bool CanModifyOrDelete(ApplicationStatus currentStatus, User currentUser)
     {
@@ -129,7 +125,7 @@ public class StatusWorkflowEngine
 
     /// <summary>
     /// Başvurunun statüsünü değiştirir ve geçişi kaydeder.
-    /// Kontrol sırası: giriş (401) -> rol izni ve sahiplik (403) -> akış kuralı -> gerekçe -> Ek-16 onayı.
+    /// Kontrol sırası: giriş (401) -> rol izni ve sahiplik (403) -> akış kuralı -> gerekçe -> Ek-16 doğrulaması (Onaylandı için).
     /// </summary>
     /// <exception cref="LoginRequiredException">Kullanıcı yok.</exception>
     /// <exception cref="ForbiddenAccessException">Rol ya da sahiplik bu geçişe yetmiyor.</exception>
@@ -164,9 +160,9 @@ public class StatusWorkflowEngine
         if (RequiresNote(newStatus) && string.IsNullOrWhiteSpace(note))
             throw new ArgumentException($"'{GetDisplayName(newStatus)}' için gerekçe yazılmalıdır.", nameof(note));
 
-        if (newStatus == ApplicationStatus.Completed && !application.Ek16Verified)
+        if (newStatus == ApplicationStatus.Approved && !application.Ek16Verified)
             throw new InvalidOperationException(
-                "Başvuru Ek-16 listesiyle doğrulanmadan 'Tamamlandı' statüsüne alınamaz.");
+                "Başvuru Ek-16 listesiyle doğrulanmadan 'Onaylandı' statüsüne alınamaz.");
 
         DateTime now = _utcNow();
 
@@ -255,11 +251,6 @@ public class StatusWorkflowEngine
         var application = LoadApplication(connection, transaction, applicationId)
             ?? throw new KeyNotFoundException($"#{applicationId} numaralı staj başvurusu bulunamadı.");
 
-        if (currentUser.Role is not (UserRole.Student or UserRole.Admin))
-            throw new ForbiddenAccessException(
-                $"403 Yetkisiz Erişim: {RolePermissions.ToRoleName(currentUser.Role)} rolü başvuru içeriğini değiştiremez; " +
-                "yalnızca statüsünü değiştirebilir.");
-
         if (currentUser.Role == UserRole.Student && application.StudentId != currentUser.Id)
             throw new ForbiddenAccessException(
                 "403 Yetkisiz Erişim: Yalnızca kendi staj başvurunuz ve evraklarınız üzerinde değişiklik yapabilirsiniz.");
@@ -270,12 +261,12 @@ public class StatusWorkflowEngine
         string statusName = GetDisplayName(application.Status);
         throw new InvalidOperationException(application.Status switch
         {
-            ApplicationStatus.Completed or ApplicationStatus.Rejected =>
+            ApplicationStatus.Completed =>
                 $"'{statusName}' statüsündeki başvuru ve evrakları öğrenci tarafından {action}; " +
                 "değişiklik için yönetici ile iletişime geçin.",
-            ApplicationStatus.UnderReview =>
+            ApplicationStatus.UnderReview or ApplicationStatus.Approved =>
                 $"Başvuru '{statusName}' statüsündeyken başvuru ve evrakları {action}. " +
-                "Değişiklik yalnızca 'Yüklendi' veya 'Revizyon Gerekli' statüsünde yapılabilir.",
+                "Değişiklik yalnızca 'Yüklendi' veya 'Hatalı / Eksik' statüsünde yapılabilir.",
             _ =>
                 $"'{statusName}' statüsündeki başvuru ve evrakları {action}."
         });
@@ -295,17 +286,8 @@ public class StatusWorkflowEngine
                 "403 Yetkisiz Erişim: Yalnızca kendi staj başvurunuzu yeniden yükleyebilirsiniz.");
     }
 
-    // Bellekte oluşturulmuş bir kullanıcı nesnesiyle yetki atlatılamasın diye rol veritabanından da doğrulanır.
-    private static void EnsureUserInDatabase(SqliteConnection connection, SqliteTransaction transaction, User user)
-    {
-        using var command = connection.CreateCommand();
-        command.Transaction = transaction;
-        command.CommandText = "SELECT Role FROM Users WHERE Id = $id;";
-        command.Parameters.AddWithValue("$id", user.Id);
-
-        if (command.ExecuteScalar() as string != user.Role.ToString())
-            throw new ForbiddenAccessException("403 Yetkisiz Erişim: Kullanıcı kaydı doğrulanamadı.");
-    }
+    private static void EnsureUserInDatabase(SqliteConnection connection, SqliteTransaction transaction, User user) =>
+        UserGuard.EnsureUserInDatabase(connection, transaction, user);
 
     private static ApplicationInfo? LoadApplication(SqliteConnection connection, SqliteTransaction transaction, int applicationId)
     {

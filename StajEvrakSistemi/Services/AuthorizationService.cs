@@ -3,8 +3,8 @@ using StajEvrakSistemi.Core;
 namespace StajEvrakSistemi.Services;
 
 /// <summary>
-/// Rol bazlı yetkilendirme katmanı. Her kontrol önce aktif oturumu (401),
-/// sonra rol iznini ve gerekiyorsa kaynak sahipliğini (403) denetler.
+/// Rol bazlı yetkilendirme katmanı. Her kontrol, isteği yapan kullanıcının oturum token'ını alır ve önce
+/// oturumu (401), sonra rol iznini ve gerekiyorsa kaynak sahipliğini (403) denetler.
 /// Authorize* metotları sonuç döndürür, Ensure* metotları izin yoksa istisna fırlatır.
 /// </summary>
 public class AuthorizationService
@@ -19,18 +19,18 @@ public class AuthorizationService
     /// <summary>
     /// Aktif oturum var mı? Yoksa giriş ekranına yönlendirme sonucu döner.
     /// </summary>
-    public AuthorizationResult RequireLogin() =>
-        _sessions.CurrentSession is null ? AuthorizationResult.LoginRequired : AuthorizationResult.Allowed;
+    public AuthorizationResult RequireLogin(string? sessionToken) =>
+        _sessions.GetSession(sessionToken) is null ? AuthorizationResult.LoginRequired : AuthorizationResult.Allowed;
 
     /// <summary>
     /// Giriş yapmış kullanıcının rolü bu izne sahip mi?
     /// </summary>
-    public bool HasPermission(Permission permission) =>
-        _sessions.CurrentSession is { } session && RolePermissions.Has(session.Role, permission);
+    public bool HasPermission(string? sessionToken, Permission permission) =>
+        _sessions.GetSession(sessionToken) is { } session && RolePermissions.Has(session.Role, permission);
 
-    public AuthorizationResult Authorize(Permission permission)
+    public AuthorizationResult Authorize(string? sessionToken, Permission permission)
     {
-        var session = _sessions.CurrentSession;
+        var session = _sessions.GetSession(sessionToken);
         if (session is null)
             return AuthorizationResult.LoginRequired;
 
@@ -41,11 +41,12 @@ public class AuthorizationService
     }
 
     /// <summary>
-    /// Ekran bazlı kontrol, ör. yönetici paneli için AuthorizeRole(UserRole.Admin).
+    /// Ekran bazlı kontrol, ör. admin paneli için AuthorizeRole(token, UserRole.Admin).
+    /// Yetkisiz istek 403 döner (şartname 4.2); arayüz bunu login sayfasına yönlendirmeyle karşılar.
     /// </summary>
-    public AuthorizationResult AuthorizeRole(params UserRole[] allowedRoles)
+    public AuthorizationResult AuthorizeRole(string? sessionToken, params UserRole[] allowedRoles)
     {
-        var session = _sessions.CurrentSession;
+        var session = _sessions.GetSession(sessionToken);
         if (session is null)
             return AuthorizationResult.LoginRequired;
 
@@ -58,12 +59,11 @@ public class AuthorizationService
     }
 
     /// <summary>
-    /// Staj başvurusu ve evraklarını görüntüleme. Öğrenci yalnızca kendi kaydını,
-    /// yönetici ve komisyon tüm kayıtları görebilir.
+    /// Staj başvurusu ve evraklarını görüntüleme. Öğrenci yalnızca kendi kaydını, yönetici tüm kayıtları görebilir.
     /// </summary>
-    public AuthorizationResult AuthorizeInternshipView(int ownerStudentId)
+    public AuthorizationResult AuthorizeInternshipView(string? sessionToken, int ownerStudentId)
     {
-        var session = _sessions.CurrentSession;
+        var session = _sessions.GetSession(sessionToken);
         if (session is null)
             return AuthorizationResult.LoginRequired;
 
@@ -81,28 +81,30 @@ public class AuthorizationService
     /// <summary>
     /// Evrak yükleme. Yalnızca yükleme izni olan rol (öğrenci) ve yalnızca kendi stajına.
     /// </summary>
-    public AuthorizationResult AuthorizeDocumentUpload(int ownerStudentId)
+    public AuthorizationResult AuthorizeDocumentUpload(string? sessionToken, int ownerStudentId)
     {
-        var result = Authorize(Permission.UploadDocument);
+        var result = Authorize(sessionToken, Permission.UploadDocument);
         if (!result.IsAllowed)
             return result;
 
-        return IsOwner(_sessions.CurrentSession!, ownerStudentId)
+        return IsOwner(_sessions.GetSession(sessionToken)!, ownerStudentId)
             ? AuthorizationResult.Allowed
             : AuthorizationResult.Forbidden("Yalnızca kendi staj başvurunuza evrak yükleyebilirsiniz.");
     }
 
-    public void EnsureLoggedIn() => RequireLogin().ThrowIfDenied();
+    public void EnsureLoggedIn(string? sessionToken) => RequireLogin(sessionToken).ThrowIfDenied();
 
-    public void EnsureAuthorized(Permission permission) => Authorize(permission).ThrowIfDenied();
+    public void EnsureAuthorized(string? sessionToken, Permission permission) =>
+        Authorize(sessionToken, permission).ThrowIfDenied();
 
-    public void EnsureRole(params UserRole[] allowedRoles) => AuthorizeRole(allowedRoles).ThrowIfDenied();
+    public void EnsureRole(string? sessionToken, params UserRole[] allowedRoles) =>
+        AuthorizeRole(sessionToken, allowedRoles).ThrowIfDenied();
 
-    public void EnsureCanViewInternship(int ownerStudentId) =>
-        AuthorizeInternshipView(ownerStudentId).ThrowIfDenied();
+    public void EnsureCanViewInternship(string? sessionToken, int ownerStudentId) =>
+        AuthorizeInternshipView(sessionToken, ownerStudentId).ThrowIfDenied();
 
-    public void EnsureCanUploadDocument(int ownerStudentId) =>
-        AuthorizeDocumentUpload(ownerStudentId).ThrowIfDenied();
+    public void EnsureCanUploadDocument(string? sessionToken, int ownerStudentId) =>
+        AuthorizeDocumentUpload(sessionToken, ownerStudentId).ThrowIfDenied();
 
     private static bool IsOwner(UserSession session, int ownerStudentId) =>
         ownerStudentId > 0 && session.UserId == ownerStudentId;

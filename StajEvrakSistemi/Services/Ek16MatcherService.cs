@@ -93,7 +93,41 @@ public class Ek16MatcherService
         return new ScannedDocumentComparisonResult(applicationId, discrepancies, _utcNow());
     }
 
-    private Ek16ComparisonResult Compare(SqliteConnection connection, SqliteTransaction transaction, ApplicationInfo app)
+    /// <summary>
+    /// Yüklenen Ek-16 belgesinden okunan değerleri, Admin'in yüklediği veri setindeki kayıtla karşılaştırır
+    /// (hoca: "sisteme yüklenen belgeler ile test veri setindeki bilgiler karşılaştırılacaktır").
+    /// Sonuç başvurunun Ek-16 doğrulama durumuna da yazılır: tam eşleşme onaylanır, uyuşmazlıkta onay kalkar.
+    /// </summary>
+    /// <exception cref="KeyNotFoundException">Başvuru bulunamadı.</exception>
+    public Ek16ComparisonResult CompareScannedDocumentWithDataset(int applicationId, ScannedDocumentFields scanned)
+    {
+        ArgumentNullException.ThrowIfNull(scanned);
+
+        using var connection = _database.GetConnection();
+        using var transaction = connection.BeginTransaction();
+
+        var app = LoadApplications(connection, transaction, applicationId).SingleOrDefault()
+            ?? throw new KeyNotFoundException($"#{applicationId} numaralı staj başvurusu bulunamadı.");
+
+        // Karşılaştırmanın "sol tarafı" artık başvuru değil, belgeden okunan değerlerdir.
+        var fromDocument = app with
+        {
+            StudentNumber = scanned.StudentNumber?.Trim(),
+            IdentityNumber = scanned.IdentityNumber?.Trim(),
+            FullName = scanned.FullName?.Trim() ?? string.Empty,
+            Department = scanned.Department?.Trim(),
+            AcademicYear = scanned.AcademicYear?.Trim() ?? string.Empty
+        };
+
+        var result = Compare(connection, transaction, fromDocument, "Ek-16 belgesinde");
+        SaveVerification(connection, transaction, result);
+
+        transaction.Commit();
+        return result;
+    }
+
+    private Ek16ComparisonResult Compare(
+        SqliteConnection connection, SqliteTransaction transaction, ApplicationInfo app, string source = "başvuruda")
     {
         DateTime now = _utcNow();
         var official = FindBestRecord(connection, transaction, app);
@@ -112,11 +146,11 @@ public class Ek16MatcherService
 
         var discrepancies = new List<Ek16Discrepancy>();
 
-        CompareExact(discrepancies, Ek16Field.StudentNumber, "Öğrenci numarası", app.StudentNumber, official.StudentNumber);
-        CompareExact(discrepancies, Ek16Field.IdentityNumber, "T.C./Yabancı kimlik numarası", app.IdentityNumber, official.IdentityNumber);
-        CompareText(discrepancies, Ek16Field.FullName, "Ad soyad", app.FullName, official.FullName);
-        CompareText(discrepancies, Ek16Field.Department, "Bölüm", app.Department, official.Department);
-        CompareExact(discrepancies, Ek16Field.AcademicYear, "Öğretim yılı (dönem)", app.AcademicYear, official.AcademicYear);
+        CompareExact(discrepancies, Ek16Field.StudentNumber, "Öğrenci numarası", app.StudentNumber, official.StudentNumber, source);
+        CompareExact(discrepancies, Ek16Field.IdentityNumber, "T.C./Yabancı kimlik numarası", app.IdentityNumber, official.IdentityNumber, source);
+        CompareText(discrepancies, Ek16Field.FullName, "Ad soyad", app.FullName, official.FullName, source);
+        CompareText(discrepancies, Ek16Field.Department, "Bölüm", app.Department, official.Department, source);
+        CompareExact(discrepancies, Ek16Field.AcademicYear, "Öğretim yılı (dönem)", app.AcademicYear, official.AcademicYear, source);
 
         return new Ek16ComparisonResult(app.Id, app.StudentId, app.StudentNumber, app.FullName, official, discrepancies, now);
     }
@@ -133,7 +167,8 @@ public class Ek16MatcherService
         using var command = connection.CreateCommand();
         command.Transaction = transaction;
         command.CommandText = """
-            SELECT Id, StudentNumber, IdentityNumber, FullName, Department, AcademicYear, InternshipStatus, ImportedAt, ImportedBy
+            SELECT Id, StudentNumber, IdentityNumber, FullName, Nationality, Department, AcademicYear, BirthDate, Address,
+                   PreviousInternshipDays, Email, Phone, HealthAidStatus, ImportedAt, ImportedBy
             FROM OfficialStudentRecords
             WHERE StudentNumber = $studentNumber OR IdentityNumber = $identity
             ORDER BY Id;
@@ -156,28 +191,31 @@ public class Ek16MatcherService
             .FirstOrDefault();
     }
 
+    // source: karşılaştırmanın sol tarafını anlatan ifade ("başvuruda" ya da "Ek-16 belgesinde").
     private static void CompareExact(
-        List<Ek16Discrepancy> discrepancies, Ek16Field field, string label, string? applicationValue, string officialValue)
+        List<Ek16Discrepancy> discrepancies, Ek16Field field, string label, string? applicationValue, string officialValue,
+        string source = "başvuruda")
     {
         string? value = applicationValue?.Trim();
         if (string.IsNullOrEmpty(value))
             discrepancies.Add(new Ek16Discrepancy(field, null, officialValue,
-                $"{label} başvuruda yok; Ek-16 listesinde '{officialValue}'."));
+                $"{label} {source} yok; Ek-16 listesinde '{officialValue}'."));
         else if (value != officialValue)
             discrepancies.Add(new Ek16Discrepancy(field, value, officialValue,
-                $"{label} uyuşmuyor: başvuruda '{value}', Ek-16 listesinde '{officialValue}'."));
+                $"{label} uyuşmuyor: {source} '{value}', Ek-16 listesinde '{officialValue}'."));
     }
 
     // Ad soyad ve bölüm büyük/küçük harf ve fazla boşluk farkı gözetmeden karşılaştırılır.
     private static void CompareText(
-        List<Ek16Discrepancy> discrepancies, Ek16Field field, string label, string? applicationValue, string officialValue)
+        List<Ek16Discrepancy> discrepancies, Ek16Field field, string label, string? applicationValue, string officialValue,
+        string source = "başvuruda")
     {
         if (string.IsNullOrWhiteSpace(applicationValue))
             discrepancies.Add(new Ek16Discrepancy(field, null, officialValue,
-                $"{label} başvuruda yok; Ek-16 listesinde '{officialValue}'."));
+                $"{label} {source} yok; Ek-16 listesinde '{officialValue}'."));
         else if (NormalizeText(applicationValue) != NormalizeText(officialValue))
             discrepancies.Add(new Ek16Discrepancy(field, applicationValue.Trim(), officialValue,
-                $"{label} uyuşmuyor: başvuruda '{applicationValue.Trim()}', Ek-16 listesinde '{officialValue}'."));
+                $"{label} uyuşmuyor: {source} '{applicationValue.Trim()}', Ek-16 listesinde '{officialValue}'."));
     }
 
     // Belgeden okunamayan alan da uyuşmazlık sayılır: belge okunaklı değilse teslime hazır olmaz.
@@ -254,13 +292,23 @@ public class Ek16MatcherService
     }
 
     private static OfficialStudentRecord MapRecord(SqliteDataReader reader) =>
-        new(reader.GetString(1), reader.GetString(2), reader.GetString(3), reader.GetString(4), reader.GetString(5),
-            Enum.Parse<OfficialInternshipStatus>(reader.GetString(6)))
+        new(studentNumber: reader.GetString(1),
+            identityNumber: reader.GetString(2),
+            fullName: reader.GetString(3),
+            nationality: reader.GetString(4),
+            department: reader.GetString(5),
+            academicYear: reader.GetString(6),
+            birthDate: reader.IsDBNull(7) ? null : DateTime.ParseExact(reader.GetString(7), "yyyy-MM-dd", CultureInfo.InvariantCulture),
+            address: reader.IsDBNull(8) ? null : reader.GetString(8),
+            previousInternshipDays: reader.IsDBNull(9) ? null : reader.GetInt32(9),
+            email: reader.IsDBNull(10) ? null : reader.GetString(10),
+            phone: reader.IsDBNull(11) ? null : reader.GetString(11),
+            healthAidStatus: reader.IsDBNull(12) ? null : reader.GetString(12))
         {
             Id = reader.GetInt32(0),
-            ImportedAt = DateTime.Parse(reader.GetString(7), CultureInfo.InvariantCulture,
+            ImportedAt = DateTime.Parse(reader.GetString(13), CultureInfo.InvariantCulture,
                 DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal),
-            ImportedByUserId = reader.IsDBNull(8) ? null : reader.GetInt32(8)
+            ImportedByUserId = reader.IsDBNull(14) ? null : reader.GetInt32(14)
         };
 
     private sealed record ApplicationInfo(

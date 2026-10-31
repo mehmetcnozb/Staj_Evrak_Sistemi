@@ -8,7 +8,6 @@ public static class RolePermissions
 {
     public const string RoleStudent = "ROLE_STUDENT";
     public const string RoleAdmin = "ROLE_ADMIN";
-    public const string RoleCommission = "ROLE_COMMISSION";
 
     private static readonly IReadOnlyDictionary<UserRole, IReadOnlySet<Permission>> Map =
         new Dictionary<UserRole, IReadOnlySet<Permission>>
@@ -22,14 +21,9 @@ public static class RolePermissions
             {
                 Permission.ViewAllInternships,
                 Permission.ReviewDocument,
+                Permission.ApproveInternship,
                 Permission.ManageUsers,
                 Permission.ImportDataset
-            },
-            [UserRole.Commission] = new HashSet<Permission>
-            {
-                Permission.ViewAllInternships,
-                Permission.ReviewDocument,
-                Permission.ApproveInternship
             }
         };
 
@@ -40,7 +34,6 @@ public static class RolePermissions
     {
         UserRole.Student => RoleStudent,
         UserRole.Admin => RoleAdmin,
-        UserRole.Commission => RoleCommission,
         _ => throw new ArgumentOutOfRangeException(nameof(role), role, null)
     };
 }

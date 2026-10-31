@@ -2,12 +2,9 @@ namespace StajEvrakSistemi.Core;
 
 /// <summary>
 /// Documents.DocumentType sütununda metin olarak saklanan belge türleri.
+/// Şartname: sistem yalnızca Ek-16 belgesini işler.
 /// </summary>
 public enum DocumentType
 {
-    InternshipApplicationForm,  // Staj Başvuru Formu
-    InsuranceDocument,          // SGK Sigorta Belgesi
-    InternshipReport,           // Staj Defteri / Raporu
-    EvaluationForm,             // İşyeri Değerlendirme Formu
-    AcceptanceLetter            // Kurum Staj Kabul Yazısı
+    Ek16
 }

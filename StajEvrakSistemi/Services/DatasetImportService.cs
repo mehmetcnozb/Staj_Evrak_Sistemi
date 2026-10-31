@@ -9,8 +9,10 @@ using StajEvrakSistemi.Models;
 namespace StajEvrakSistemi.Services;
 
 /// <summary>
-/// Admin'in yüklediği resmi öğrenci/staj veri setini (CSV veya JSON) okur ve
-/// mükerrer kayıtları atlayarak OfficialStudentRecords tablosuna aktarır.
+/// Admin'in yüklediği öğrenci veri setini (CSV veya JSON) okur ve mükerrer kayıtları atlayarak
+/// OfficialStudentRecords tablosuna aktarır. Sütunlar şartname 4.3'e göredir:
+/// ad soyad, T.C. kimlik no, uyruk, öğrenci no, doğum tarihi, ikametgâh adresi, bölüm, Ek-16 teslim yılı,
+/// önceki staj gün sayısı, e-posta, telefon, sağlık yardımı statüsü.
 /// </summary>
 public class DatasetImportService
 {
@@ -21,10 +23,43 @@ public class DatasetImportService
         StudentNumber,
         IdentityNumber,
         FullName,
+        Nationality,
         Department,
         AcademicYear,
-        InternshipStatus
+        BirthDate,
+        Address,
+        PreviousInternshipDays,
+        Email,
+        Phone,
+        HealthAidStatus
     }
+
+    // Kayıt oluşturmak için şart olan alanlar; diğerleri dosyada yoksa boş bırakılır.
+    private static readonly Field[] RequiredFields =
+    {
+        Field.StudentNumber, Field.IdentityNumber, Field.FullName, Field.Nationality, Field.Department, Field.AcademicYear
+    };
+
+    private static readonly Dictionary<Field, string> FieldLabels = new()
+    {
+        [Field.StudentNumber] = "Öğrenci No",
+        [Field.IdentityNumber] = "TC Kimlik No",
+        [Field.FullName] = "Ad Soyad",
+        [Field.Nationality] = "Uyruk",
+        [Field.Department] = "Bölüm",
+        [Field.AcademicYear] = "Öğretim Yılı",
+        [Field.BirthDate] = "Doğum Tarihi",
+        [Field.Address] = "İkametgâh Adresi",
+        [Field.PreviousInternshipDays] = "Önceki Staj Gün Sayısı",
+        [Field.Email] = "E-posta",
+        [Field.Phone] = "Telefon No",
+        [Field.HealthAidStatus] = "Sağlık Yardımı Statüsü"
+    };
+
+    private static readonly string[] DateFormats =
+    {
+        "dd.MM.yyyy", "d.M.yyyy", "yyyy-MM-dd", "dd/MM/yyyy", "d/M/yyyy", "dd-MM-yyyy", "d-M-yyyy"
+    };
 
     // Sütun / alan adları normalize edilerek eşleştirilir (küçük harf, Türkçe karakter ve boşluk yok).
     private static readonly Dictionary<string, Field> FieldAliases = BuildAliases(new Dictionary<Field, string[]>
@@ -32,22 +67,25 @@ public class DatasetImportService
         [Field.StudentNumber] = new[] { "StudentNumber", "StudentNo", "Öğrenci No", "Öğrenci Numarası", "Numara", "Okul No" },
         [Field.IdentityNumber] = new[]
         {
-            "IdentityNumber", "TC", "TCKN", "TC No", "TC Kimlik No", "Kimlik No", "Kimlik Numarası",
+            "IdentityNumber", "TC", "TCKN", "TC No", "TC Kimlik No", "T.C. Kimlik No", "Kimlik No", "Kimlik Numarası",
             "Yabancı Kimlik No", "TC/Yabancı Kimlik No"
         },
-        [Field.FullName] = new[] { "FullName", "Name", "Ad Soyad", "Adı Soyadı", "Ad Soyadı" },
-        [Field.Department] = new[] { "Department", "Bölüm", "Bölümü", "Program" },
-        [Field.AcademicYear] = new[] { "AcademicYear", "Öğretim Yılı", "Eğitim Öğretim Yılı", "Akademik Yıl", "Yıl" },
-        [Field.InternshipStatus] = new[] { "InternshipStatus", "Status", "Staj Durumu", "Durum" }
-    });
-
-    private static readonly Dictionary<string, OfficialInternshipStatus> StatusAliases =
-        BuildAliases(new Dictionary<OfficialInternshipStatus, string[]>
-    {
-        [OfficialInternshipStatus.NotStarted] = new[] { "NotStarted", "Başlamadı", "Yapılmadı", "Yapmadı", "Beklemede" },
-        [OfficialInternshipStatus.InProgress] = new[] { "InProgress", "Devam Ediyor", "Devam", "Sürüyor" },
-        [OfficialInternshipStatus.Completed] = new[] { "Completed", "Tamamlandı", "Tamam", "Başarılı" },
-        [OfficialInternshipStatus.Failed] = new[] { "Failed", "Başarısız", "Kaldı" }
+        [Field.FullName] = new[] { "FullName", "Name", "Ad Soyad", "Adı Soyadı", "Ad Soyadı", "Öğrenci Ad Soyad" },
+        [Field.Nationality] = new[] { "Nationality", "Uyruk", "Uyruğu" },
+        [Field.Department] = new[] { "Department", "Bölüm", "Bölümü", "Program", "Okuduğu Bölüm" },
+        [Field.AcademicYear] = new[]
+        {
+            "AcademicYear", "Öğretim Yılı", "Eğitim Öğretim Yılı", "Akademik Yıl", "Yıl", "Ek-16 Teslim Yılı", "Teslim Yılı"
+        },
+        [Field.BirthDate] = new[] { "BirthDate", "DateOfBirth", "Doğum Tarihi" },
+        [Field.Address] = new[] { "Address", "Adres", "İkametgâh Adresi", "İkametgah Adresi", "Açık Adres" },
+        [Field.PreviousInternshipDays] = new[]
+        {
+            "PreviousInternshipDays", "Daha Önce Yapılan Staj Gün Sayısı", "Önceki Staj Gün Sayısı", "Önceki Staj Günü"
+        },
+        [Field.Email] = new[] { "Email", "E-posta", "Eposta", "E-Mail" },
+        [Field.Phone] = new[] { "Phone", "Telefon", "Telefon No", "Telefon Numarası" },
+        [Field.HealthAidStatus] = new[] { "HealthAidStatus", "Sağlık Yardımı Statüsü", "Sağlık Yardımı", "Sağlık Yardımı Durumu" }
     });
 
     private readonly DatabaseManager _database;
@@ -96,15 +134,23 @@ public class DatasetImportService
         insert.Transaction = transaction;
         insert.CommandText = """
             INSERT OR IGNORE INTO OfficialStudentRecords
-                (StudentNumber, IdentityNumber, FullName, Department, AcademicYear, InternshipStatus, ImportedAt, ImportedBy)
-            VALUES ($studentNumber, $identity, $fullName, $department, $year, $status, $importedAt, $importedBy);
+                (StudentNumber, IdentityNumber, FullName, Nationality, Department, AcademicYear, BirthDate, Address,
+                 PreviousInternshipDays, Email, Phone, HealthAidStatus, ImportedAt, ImportedBy)
+            VALUES ($studentNumber, $identity, $fullName, $nationality, $department, $year, $birthDate, $address,
+                    $days, $email, $phone, $healthAid, $importedAt, $importedBy);
             """;
         var pStudent = insert.Parameters.Add("$studentNumber", SqliteType.Text);
         var pIdentity = insert.Parameters.Add("$identity", SqliteType.Text);
         var pFullName = insert.Parameters.Add("$fullName", SqliteType.Text);
+        var pNationality = insert.Parameters.Add("$nationality", SqliteType.Text);
         var pDepartment = insert.Parameters.Add("$department", SqliteType.Text);
         var pYear = insert.Parameters.Add("$year", SqliteType.Text);
-        var pStatus = insert.Parameters.Add("$status", SqliteType.Text);
+        var pBirth = insert.Parameters.Add("$birthDate", SqliteType.Text);
+        var pAddress = insert.Parameters.Add("$address", SqliteType.Text);
+        var pDays = insert.Parameters.Add("$days", SqliteType.Integer);
+        var pEmail = insert.Parameters.Add("$email", SqliteType.Text);
+        var pPhone = insert.Parameters.Add("$phone", SqliteType.Text);
+        var pHealth = insert.Parameters.Add("$healthAid", SqliteType.Text);
         insert.Parameters.AddWithValue("$importedAt", now.ToString("o", CultureInfo.InvariantCulture));
         insert.Parameters.AddWithValue("$importedBy", currentUser.Id);
 
@@ -113,9 +159,17 @@ public class DatasetImportService
             pStudent.Value = record.StudentNumber;
             pIdentity.Value = record.IdentityNumber;
             pFullName.Value = record.FullName;
+            pNationality.Value = record.Nationality;
             pDepartment.Value = record.Department;
             pYear.Value = record.AcademicYear;
-            pStatus.Value = record.InternshipStatus.ToString();
+            pBirth.Value = record.BirthDate.HasValue
+                ? record.BirthDate.Value.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
+                : DBNull.Value;
+            pAddress.Value = (object?)record.Address ?? DBNull.Value;
+            pDays.Value = (object?)record.PreviousInternshipDays ?? DBNull.Value;
+            pEmail.Value = (object?)record.Email ?? DBNull.Value;
+            pPhone.Value = (object?)record.Phone ?? DBNull.Value;
+            pHealth.Value = (object?)record.HealthAidStatus ?? DBNull.Value;
 
             // INSERT OR IGNORE: UNIQUE kısıtına takılan (zaten var olan) kayıt 0 satır etkiler.
             if (insert.ExecuteNonQuery() == 0)
@@ -178,9 +232,10 @@ public class DatasetImportService
                 columns.TryAdd(field, i);
         }
 
-        var missing = Enum.GetValues<Field>().Where(f => !columns.ContainsKey(f)).ToList();
+        var missing = RequiredFields.Where(f => !columns.ContainsKey(f)).ToList();
         if (missing.Count > 0)
-            throw new InvalidDataException($"CSV başlığında eksik sütun(lar): {string.Join(", ", missing)}");
+            throw new InvalidDataException(
+                $"CSV başlığında eksik sütun(lar): {string.Join(", ", missing.Select(f => FieldLabels[f]))}");
 
         for (int i = headerIndex + 1; i < lines.Length; i++)
         {
@@ -253,28 +308,53 @@ public class DatasetImportService
     private static void AddRecord(
         Dictionary<Field, string?> values, int rowNumber, List<OfficialStudentRecord> records, List<DatasetRowError> errors)
     {
-        var missing = Enum.GetValues<Field>().Where(f => string.IsNullOrWhiteSpace(values.GetValueOrDefault(f))).ToList();
+        string? Get(Field f) => values.GetValueOrDefault(f);
+
+        var missing = RequiredFields.Where(f => string.IsNullOrWhiteSpace(Get(f))).ToList();
         if (missing.Count > 0)
         {
-            errors.Add(new DatasetRowError(rowNumber, $"Eksik alan(lar): {string.Join(", ", missing)}"));
+            errors.Add(new DatasetRowError(rowNumber, $"Eksik alan(lar): {string.Join(", ", missing.Select(f => FieldLabels[f]))}"));
             return;
         }
 
-        if (!StatusAliases.TryGetValue(Normalize(values[Field.InternshipStatus]!), out var status))
+        DateTime? birthDate = null;
+        if (!string.IsNullOrWhiteSpace(Get(Field.BirthDate)))
         {
-            errors.Add(new DatasetRowError(rowNumber, $"Bilinmeyen staj durumu: {values[Field.InternshipStatus]}"));
-            return;
+            if (!DateTime.TryParseExact(Get(Field.BirthDate)!.Trim(), DateFormats, CultureInfo.InvariantCulture,
+                    DateTimeStyles.None, out var parsedDate))
+            {
+                errors.Add(new DatasetRowError(rowNumber, $"Doğum tarihi geçersiz (gg.aa.yyyy bekleniyor): {Get(Field.BirthDate)}"));
+                return;
+            }
+            birthDate = parsedDate;
+        }
+
+        int? previousDays = null;
+        if (!string.IsNullOrWhiteSpace(Get(Field.PreviousInternshipDays)))
+        {
+            if (!int.TryParse(Get(Field.PreviousInternshipDays)!.Trim(), NumberStyles.None, CultureInfo.InvariantCulture, out var days))
+            {
+                errors.Add(new DatasetRowError(rowNumber, $"Önceki staj gün sayısı geçersiz: {Get(Field.PreviousInternshipDays)}"));
+                return;
+            }
+            previousDays = days;
         }
 
         try
         {
             records.Add(new OfficialStudentRecord(
-                values[Field.StudentNumber]!,
-                values[Field.IdentityNumber]!,
-                values[Field.FullName]!,
-                values[Field.Department]!,
-                values[Field.AcademicYear]!,
-                status));
+                Get(Field.StudentNumber)!,
+                Get(Field.IdentityNumber)!,
+                Get(Field.FullName)!,
+                Get(Field.Nationality)!,
+                Get(Field.Department)!,
+                Get(Field.AcademicYear)!,
+                birthDate,
+                Get(Field.Address),
+                previousDays,
+                Get(Field.Email),
+                Get(Field.Phone),
+                Get(Field.HealthAidStatus)));
         }
         catch (ArgumentException ex)
         {
@@ -355,7 +435,7 @@ public class DatasetImportService
     private static string Normalize(string value)
     {
         var builder = new StringBuilder(value.Length);
-        foreach (char raw in value.Trim().ToLowerInvariant())
+        foreach (char raw in value.Trim().TrimStart('﻿').ToLowerInvariant())
         {
             char c = raw switch
             {
@@ -365,6 +445,9 @@ public class DatasetImportService
                 'ö' => 'o',
                 'ş' => 's',
                 'ü' => 'u',
+                'â' => 'a',
+                'î' => 'i',
+                'û' => 'u',
                 _ => raw
             };
             if (char.IsAsciiLetterOrDigit(c))
@@ -375,5 +458,6 @@ public class DatasetImportService
 
     private static Dictionary<string, T> BuildAliases<T>(Dictionary<T, string[]> source) where T : notnull =>
         source.SelectMany(pair => pair.Value.Select(alias => (Alias: Normalize(alias), Value: pair.Key)))
-              .ToDictionary(x => x.Alias, x => x.Value);
+              .GroupBy(x => x.Alias)   // "TC Kimlik No" ve "T.C. Kimlik No" normalize edilince aynı olur
+              .ToDictionary(g => g.Key, g => g.First().Value);
 }

@@ -114,7 +114,9 @@ public abstract class User
 
     public override string ToString() => GetDisplayName();
 
-    protected static bool IsValidIdentityNumber(string value) => IdentityNumberValidator.IsValid(value);
+    // Şartname 6.2: 11 hane, yalnızca rakam, ilk hane 0 değil. Uyruğa özgü kural (99 öneki) ve isteğe bağlı
+    // algoritma kontrolü ayrı bir kuraldır: IdentityNumberValidator.IsValidForNationality / IsValid.
+    protected static bool IsValidIdentityNumber(string value) => IdentityNumberValidator.IsValidFormat(value);
 
     protected static bool IsValidPhone(string value)
     {
