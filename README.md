@@ -2,7 +2,7 @@
 
 Bu uygulamanin amaci:
 ogrencilerin staj basvurusu icin hazirladigi Ek-16 belgesinin kontrolunu ve takibini kolaylastirmaktir. sistemdeki bilgilerle ogrencinin bilgileri karsilastirilir. hatali olanlar ogrenciye bildirilir. ogrenci hatasini duzeltir. yoneticiler de basvurulari tek yerden kontrol eder.
-
+---------------------------------------------------------------------------------------------
 Mevcut ozellikler:
 *kullanici kaydi ve girisi - ogrenciler kendi sifrelerini belirleyerek hesap olusturur. bilgiler hashlenerek saklanir
 *hesap kitleme             - 5 kez hatali girilince hesap kitleniyor. 15dk sonra tekrar aciliyor. basarisiz girisler kaydediliyor.
@@ -13,17 +13,16 @@ Mevcut ozellikler:
 *ek-16 yukleme             - Word, PDF, JPEG ve PNG dosyalari kontrol edilip kaydedilebiliyor.
 *bilgi karsilastirma       - onceden okunup servise verilen ogrenci numarasi, kimlik numarasi, ad soyad, bolum ve ogretim yili karsilastirilabiliyor.
 *durum takibi              - degisiklik gecmisi tutuyor. tamamlanan basvurularda ogrencinin degistirmesi engelleniyor. admin degistiriyor.
-
+---------------------------------------------------------------------------------------------
 Projede kullanilan teknolojiler:
 C#                     - uygulamanin yazildigi temel programlama dili
 .NET 8                 - C# kodlarini derlemek ve calistirmak icin kullanilan platform
 SQLite                 - kullanici, basvuru ve belge bilgilerini saklayan veri tabani
 Microsoft.Data.Sqlite  - C# uygulamasinin SQLite veritabani ile  iletisim kurmasini saglayan paket.
-
-
+---------------------------------------------------------------------------------------------
 Kurulum ve calistirma
 henuz kurulmadi.
-
+---------------------------------------------------------------------------------------------
 Klasor yapisi:
 Staj_Evrak_Sistemi/
     
@@ -40,9 +39,11 @@ Staj_Evrak_Sistemi/
             Permission.cs (Sistemde yapilabilecek yetkili islemleri-fonksiyonlari tanimlar.)
             RolePermissions.cs (Permission.cs deki islemleri, hangi rollerin yapabilecegini kisitlar)
             UserRole.cs (Aktif olan kullanici rollerini tanimlar.)
+            InternshipDateValidator.cs (Basvuru ile staj baslangici arasindaki 30 gun kuralini kontrol eder, son teslim tarihini hesaplar ve stajin ders donemleriyle cakisip cakismadigini belirler.)
         
         Data/
             DatabaseManager.cs (uygulamanin SQLite veritabanina baglanmasini ve gerekli tablolarin hazirlanmasini saglar.)
+            AcademicCalendars.cs (Kocaeli Universitesinin 2026-2027 genel onlisans ve lisans ders tarihlerini saklar.)
         
         Models/
             User.cs (butun kullanicilarin ortak temel sinifi.  Kimlik, ad soyad, e-posta, telefon vb...)
@@ -56,6 +57,7 @@ Staj_Evrak_Sistemi/
             ScannedDocumentComparisonResult.cs (ogrencinin girdigi bilgilerle belgeden gelen alanlarin karsilastirma sonucunu tasir. Ayni dosyada, okunmus belge alanlarini tasiyan ScannedDocumentFields modeli de bulunur.)
             StatusTransitionLog.cs (Basvurunun durum degisikligini temsil eder. onceki/yeni durum, islemi yapan kullanici, tarih ve gerekceyi icerir.)
             FailedLoginLog.cs (Basarisiz giris denemesini temsil eder. Kullanici bilgisi, kullanilan giris bilgisi, basarisizlik nedeni ve zamani icerir.)
+            AcademicCalendar.cs (Ogretim yilini ve guz/bahar ders donemlerinin baslangic ve bitis tarihlerini tasir. Takvim olusturulurken tarih araliklarini kontrol eder.)
         
         Services/
             AuthService.cs	(Kullanici kaydi, giris, hesap kilitleme ve basarisiz giris kayitlarini yonetir.)
@@ -79,16 +81,16 @@ Staj_Evrak_Sistemi/
         Program.cs(	Uygulamanin baslangic noktasi)
         
         StajEvrakSistemi.csproj (.NET surumu ve kullanilan paketleri tanimlar.)
-
-
-
+---------------------------------------------------------------------------------------------
 Gelistirme durumu
 
 Temel veritabani, kullanici islemleri, yetkilendirme, basvuru yonetimi, veri seti aktarimi ve belge yukleme servisleri gelistirilmistir. Web arayuzuyle entegrasyon henuz yapilmamistir.
-
+---------------------------------------------------------------------------------------------
 Yapilacak isler
 
-Ogretim yili, akademik takvim ve 30 gun once basvuru kontrolleri.
+Ogretim yili biciminin, yariyil bilgisinin ve staj tarihlerinin secilen akademik takvimle uyumunun kontrol edilmesi.
+
+Hazirlanan 30 gun ve ders donemi cakisma kontrollerinin basvuru akisina baglanmasi.
 
 Staj gunlerinin hesaplanmasi ve resmi tatillerin cikarilmasi.
 
@@ -115,4 +117,14 @@ Belgedeki ogrencinin basvurunun sahibiyle eslesmesi her karsilastirma yolunda zo
 Belge yeniden yuklendiginde veya silindiginde onceki dogrulama sonucu gecerli kalabilmektedir.
 
 Onaylanan basvuru admin tarafindan degistirildikten sonra tamamlanma asamasinda yeniden dogrulama kontrolu eksiktir.
-
+---------------------------------------------------------------------------------------------
+Tarih kontrolleri
+Basvuru tarihi ile staj baslangici arasinda en az 30 takvim gunu bulunmasi kontrol edilir. Tam 30 gun gecerli kabul edilir.
+Staj baslangicina gore en gec teslim tarihi hesaplanir.
+Staj tarih araliginin guz veya bahar ders donemiyle cakismasi kontrol edilir. Donemlerin baslangic ve bitis gunleri kontrole dahildir.
+Bitis tarihinin baslangic tarihinden once olmasi engellenir.
+kocaeli unviersitesine gore 2026-2027;
+donem   -       ders baslangici     -       ders bitisi 
+guz     -       21 eylul 2026       -       25 Aralik 2026
+bahar   -       8 Subat 2027        -       28 Mayis 2027
+---------------------------------------------------------------------------------------------
