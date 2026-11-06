@@ -30,6 +30,11 @@ public class InternshipApplication
 
     public string CompanyName { get; set; } = string.Empty;
 
+    // Bu alanlar bos kalabilir. Girilmisse bicimleri kontrol edilir.
+    public string? CompanyIban { get; set; }
+
+    public string? CompanyTaxNumber { get; set; }
+
     public string? Department { get; set; }
 
     public string? Address { get; set; }

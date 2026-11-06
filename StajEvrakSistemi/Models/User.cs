@@ -1,4 +1,3 @@
-using System.Net.Mail;
 using StajEvrakSistemi.Core;
 
 namespace StajEvrakSistemi.Models;
@@ -103,7 +102,7 @@ public abstract class User
     {
         return IsValidIdentityNumber(IdentityNumber, IsForeign)
             && FullName.Length >= 3
-            && MailAddress.TryCreate(Email, out _)
+            && FormatValidator.IsValidEmail(Email)
             && (Phone is null || IsValidPhone(Phone))
             && !string.IsNullOrEmpty(_passwordHash);
     }
@@ -121,11 +120,7 @@ public abstract class User
     protected static bool IsValidIdentityNumber(string value, bool isForeign) =>
         IdentityNumberValidator.IsValidForNationality(value, isForeign, validateChecksum: true);
 
-    protected static bool IsValidPhone(string value)
-    {
-        var digits = new string(value.Where(char.IsAsciiDigit).ToArray());
-        return digits.Length is >= 10 and <= 12;
-    }
+    protected static bool IsValidPhone(string value) => FormatValidator.IsValidTurkishPhone(value);
 
     protected static string Require(string? value, string name)
     {

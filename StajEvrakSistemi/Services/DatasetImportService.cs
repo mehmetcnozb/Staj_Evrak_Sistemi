@@ -342,6 +342,15 @@ public class DatasetImportService
 
         try
         {
+            if (!FormatValidator.IsValidStudentNumber(Get(Field.StudentNumber)))
+                throw new ArgumentException("Ogrenci numarasi yalnizca harf ve rakamlardan olusmali.");
+            if (!string.IsNullOrWhiteSpace(Get(Field.Email)) && !FormatValidator.IsValidEmail(Get(Field.Email)))
+                throw new ArgumentException("Veri setindeki e-posta bicimi gecersiz.");
+            if (!string.IsNullOrWhiteSpace(Get(Field.Phone)) && !FormatValidator.IsValidTurkishPhone(Get(Field.Phone)))
+                throw new ArgumentException("Veri setindeki telefon +90 xxx xxx xx xx biciminde olmali.");
+            if (!string.IsNullOrWhiteSpace(Get(Field.Address)) && !FormatValidator.IsValidAddress(Get(Field.Address)))
+                throw new ArgumentException("Veri setindeki adres mahalle, cadde/sokak, bina no, daire no ve ilce/il bilgilerini icermeli.");
+
             var record = new OfficialStudentRecord(
                 Get(Field.StudentNumber)!,
                 Get(Field.IdentityNumber)!,

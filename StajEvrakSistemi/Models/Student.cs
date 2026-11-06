@@ -28,7 +28,7 @@ public class Student : User
     public override bool HasPermission(Permission permission) => RolePermissions.Has(Role, permission);
 
     public override bool Validate() =>
-        base.Validate() && StudentNumber.All(char.IsAsciiLetterOrDigit);
+        base.Validate() && FormatValidator.IsValidStudentNumber(StudentNumber);
 
     public override string GetDisplayName() => $"{FullName} ({StudentNumber}) - Öğrenci";
 }

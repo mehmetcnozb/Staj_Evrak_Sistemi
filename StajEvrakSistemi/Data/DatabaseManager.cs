@@ -75,6 +75,8 @@ public class DatabaseManager
         EnsureColumn(connection, transaction, "Internships", "NetWorkDays", "REAL NOT NULL DEFAULT 0");
         EnsureColumn(connection, transaction, "Internships", "EngineerCount", "INTEGER NOT NULL DEFAULT 0");
         EnsureColumn(connection, transaction, "Internships", "CreatedAt", "TEXT");
+        EnsureColumn(connection, transaction, "Internships", "CompanyIban", "TEXT");
+        EnsureColumn(connection, transaction, "Internships", "CompanyTaxNumber", "TEXT");
 
         transaction.Commit();
     }
@@ -152,6 +154,8 @@ public class DatabaseManager
             EndDate         TEXT    NOT NULL,
             NetWorkDays     REAL    NOT NULL DEFAULT 0,
             CompanyName     TEXT    NOT NULL,
+            CompanyIban     TEXT,
+            CompanyTaxNumber TEXT,
             HasEngineer     INTEGER NOT NULL DEFAULT 0 CHECK (HasEngineer IN (0, 1)),
             Status          TEXT    NOT NULL DEFAULT 'Uploaded'
                 CHECK (Status IN ('Uploaded', 'UnderReview', 'FaultyOrMissing', 'Approved', 'Completed')),

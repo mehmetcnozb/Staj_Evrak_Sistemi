@@ -17,7 +17,7 @@ public class InternshipService
 
     private const string SelectColumns = """
         Id, StudentId, AcademicYear, Semester, StartDate, EndDate, CompanyName, Department, Address, Phone, Email, Fax,
-        WorkDays, EngineerCount, GoogleFormUrl, Status, Ek16Verified, CreatedAt, NetWorkDays
+        WorkDays, EngineerCount, GoogleFormUrl, Status, Ek16Verified, CreatedAt, NetWorkDays, CompanyIban, CompanyTaxNumber
         """;
 
     private readonly DatabaseManager _database;
@@ -59,10 +59,10 @@ public class InternshipService
         command.CommandText = """
             INSERT INTO Internships
                 (StudentId, AcademicYear, Semester, StartDate, EndDate, CompanyName, Department, Address, Phone, Email, Fax,
-                 WorkDays, EngineerCount, HasEngineer, GoogleFormUrl, Status, CreatedAt, NetWorkDays)
+                 WorkDays, EngineerCount, HasEngineer, GoogleFormUrl, Status, CreatedAt, NetWorkDays, CompanyIban, CompanyTaxNumber)
             VALUES
                 ($studentId, $year, $semester, $start, $end, $company, $department, $address, $phone, $email, $fax,
-                 $workDays, $engineers, $hasEngineer, $googleForm, 'Uploaded', $createdAt, $netWorkDays);
+                 $workDays, $engineers, $hasEngineer, $googleForm, 'Uploaded', $createdAt, $netWorkDays, $companyIban, $companyTaxNumber);
             SELECT last_insert_rowid();
             """;
         BindApplication(command, application, netWorkDays);
@@ -95,7 +95,8 @@ public class InternshipService
                 AcademicYear = $year, Semester = $semester, StartDate = $start, EndDate = $end, CompanyName = $company,
                 Department = $department, Address = $address, Phone = $phone, Email = $email, Fax = $fax,
                 WorkDays = $workDays, EngineerCount = $engineers, HasEngineer = $hasEngineer, GoogleFormUrl = $googleForm,
-                NetWorkDays = $netWorkDays, Ek16Verified = 0, Ek16VerifiedAt = NULL
+                NetWorkDays = $netWorkDays, CompanyIban = $companyIban, CompanyTaxNumber = $companyTaxNumber,
+                Ek16Verified = 0, Ek16VerifiedAt = NULL
             WHERE Id = $id;
             """;
         BindApplication(command, application, netWorkDays);
@@ -187,6 +188,10 @@ public class InternshipService
             throw new ArgumentException("Staj bitiş tarihi başlangıç tarihinden önce olamaz.", nameof(application));
         if (application.EngineerCount < 0)
             throw new ArgumentException("Mühendis sayısı negatif olamaz.", nameof(application));
+
+        var formatErrors = FormatValidator.GetApplicationErrors(application);
+        if (formatErrors.Count > 0)
+            throw new ArgumentException(string.Join(" ", formatErrors), nameof(application));
     }
 
     private decimal CalculateNetWorkDays(InternshipApplication application)
@@ -222,6 +227,8 @@ public class InternshipService
         command.Parameters.AddWithValue("$engineers", a.EngineerCount);
         command.Parameters.AddWithValue("$hasEngineer", a.EngineerCount >= 1 ? 1 : 0);
         command.Parameters.AddWithValue("$googleForm", Db(a.GoogleFormUrl));
+        command.Parameters.AddWithValue("$companyIban", Db(FormatValidator.NormalizeIban(a.CompanyIban)));
+        command.Parameters.AddWithValue("$companyTaxNumber", Db(a.CompanyTaxNumber));
         // Sonuc tam veya yarim gun oldugu icin SQLite REAL alaninda kayipsiz tutulur.
         command.Parameters.AddWithValue("$netWorkDays", (double)netWorkDays);
     }
@@ -265,7 +272,9 @@ public class InternshipService
                     ? DateTime.Parse(created, CultureInfo.InvariantCulture,
                         DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal)
                     : null,
-                NetWorkDays = reader.GetDecimal(18)
+                NetWorkDays = reader.GetDecimal(18),
+                CompanyIban = Str(19),
+                CompanyTaxNumber = Str(20)
             });
         }
         return result;
