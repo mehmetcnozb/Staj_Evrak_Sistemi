@@ -1,30 +1,41 @@
 namespace StajEvrakSistemi.Core;
 
 /// <summary>
-/// T.C. Kimlik No ve Yabancı Kimlik No doğrulaması. Şartname 6.2: iki numara da 11 haneli ve
-/// yalnızca rakamdır; T.C. için ilk hane 0 olamaz, yabancı uyruklular için numara 99 ile başlar.
-/// Algoritma (kontrol haneleri) kontrolü şartnamede isteğe bağlıdır; IsValid ile ayrıca yapılabilir.
+/// T.C. ve yabanci kimlik numaralarinin bicim ve kontrol hanelerini denetler.
+/// Bu kontroller numaranin gercek bir kisiye ait oldugunu dogrulamaz.
 /// </summary>
 public static class IdentityNumberValidator
 {
     public const string ForeignPrefix = "99";
 
     /// <summary>
-    /// 11 hane, yalnızca rakam, ilk hane 0 değil.
+    /// 11 hane, yalnizca 0-9 rakamlari, ilk hane sifir degil.
     /// </summary>
     public static bool IsValidFormat(string? value) =>
         value is { Length: 11 } && value.All(char.IsAsciiDigit) && value[0] != '0';
 
     /// <summary>
-    /// Uyruğa göre biçim kontrolü: yabancı uyruklu için ek olarak 99 ile başlamalıdır.
+    /// Mevcut cagirilarda bicim kontrolu korunur. Istenirse T.C. kontrol haneleri de denetlenir.
     /// </summary>
-    public static bool IsValidForNationality(string? value, bool isForeign) =>
-        IsValidFormat(value) && (!isForeign || value!.StartsWith(ForeignPrefix, StringComparison.Ordinal));
+    public static bool IsValidForNationality(string? value, bool isForeign, bool validateChecksum = false)
+    {
+        if (isForeign)
+            return IsValidForeignIdentityNumber(value);
+
+        return validateChecksum ? IsValidTurkishIdentityNumber(value) : IsValidFormat(value);
+    }
 
     /// <summary>
-    /// Biçim kontrolüne ek olarak 10. ve 11. kontrol hanelerini de doğrular (isteğe bağlı sıkı kontrol).
+    /// Proje kuralina gore yabanci kimlik numarasi 11 haneli olmali ve 99 ile baslamali.
     /// </summary>
-    public static bool IsValid(string? value)
+    public static bool IsValidForeignIdentityNumber(string? value) =>
+        IsValidFormat(value) && value!.StartsWith(ForeignPrefix, StringComparison.Ordinal);
+
+    // Onceki IsValid cagirilari ayni T.C. kontrolunu kullanmaya devam eder.
+    public static bool IsValid(string? value) => IsValidTurkishIdentityNumber(value);
+
+    // T.C. kimlik numarasinin 10. ve 11. hanelerini ilk dokuz haneden hesaplar.
+    public static bool IsValidTurkishIdentityNumber(string? value)
     {
         if (!IsValidFormat(value))
             return false;

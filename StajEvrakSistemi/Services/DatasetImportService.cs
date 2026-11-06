@@ -342,7 +342,7 @@ public class DatasetImportService
 
         try
         {
-            records.Add(new OfficialStudentRecord(
+            var record = new OfficialStudentRecord(
                 Get(Field.StudentNumber)!,
                 Get(Field.IdentityNumber)!,
                 Get(Field.FullName)!,
@@ -354,7 +354,13 @@ public class DatasetImportService
                 previousDays,
                 Get(Field.Email),
                 Get(Field.Phone),
-                Get(Field.HealthAidStatus)));
+                Get(Field.HealthAidStatus));
+
+            // Yeni aktarilan T.C. kayitlarinda kontrol haneleri de denetlenir.
+            if (!IdentityNumberValidator.IsValidForNationality(record.IdentityNumber, record.IsForeign, validateChecksum: true))
+                throw new ArgumentException("T.C. kimlik numarasinin 10. veya 11. kontrol hanesi gecersiz.", nameof(values));
+
+            records.Add(record);
         }
         catch (ArgumentException ex)
         {

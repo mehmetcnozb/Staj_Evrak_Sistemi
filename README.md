@@ -5,6 +5,7 @@ ogrencilerin staj basvurusu icin hazirladigi Ek-16 belgesinin kontrolunu ve taki
 ---------------------------------------------------------------------------------------------
 Mevcut ozellikler:
 *kullanici kaydi ve girisi - ogrenciler kendi sifrelerini belirleyerek hesap olusturur. sifreler hashlenerek saklanir
+*kimlik kontrolu           - yeni kayitlarda T.C. kimlik numarasinin 10. ve 11. haneleri kontrol ediliyor. yabanci ogrencilerde 11 hane ve 99 ile baslama kurali kullaniliyor. yeni veri seti aktarimlarinda da bu kontroller yapiliyor.
 *hesap kitleme             - 5 kez hatali girilince hesap kitleniyor. 15dk sonra tekrar aciliyor. basarisiz girisler kaydediliyor.
 *yetkilendirme             - ogrenci ve admin rolleri bulunuyor. ogrenci sadece kendi belge ve basvurusuna erisebiliyor.
 *oturum yonetimi           - birden fazla kullanici icin oturum olusturma, sure kontrolu, cikis islrmleri
@@ -37,7 +38,8 @@ Staj_Evrak_Sistemi/
         Core/
             ApplicationStatus.cs (Basvurunun alabilecegi durumlari tanimlar. yuklendi, inceleniyor, hatali, Onaylandi ve Tamamlandi)
             DocumentType.cs (Sistemin isledigi belge turlerini tanimlar. su anda yalnizca Ek-16 bulunuyor.)
-            IdentityNumberValidator.cs (Kimlik numarasini kontrol eder. her kimligin kendi algoritmasi vardir)
+            IdentityNumberValidator.cs (T.C. kimlik numarasinin bicimini ve 10./11. kontrol hanelerini denetler. yabanci kimlik numarasinda 11 hane ve 99 onekini kontrol eder.)
+            PassportNumberValidator.cs (Turkiye umuma mahsus pasaport numarasinin U harfi ve sekiz rakamdan olusan bicimini kontrol eder.)
             Permission.cs (Sistemde yapilabilecek yetkili islemleri-fonksiyonlari tanimlar.)
             RolePermissions.cs (Permission.cs deki islemleri, hangi rollerin yapabilecegini kisitlar)
             UserRole.cs (Aktif olan kullanici rollerini tanimlar.)
@@ -51,8 +53,8 @@ Staj_Evrak_Sistemi/
             TurkishPublicHolidays.cs (2026 ve 2027 resmi tatillerini saklar. verilen tarih araligindaki tam ve yarim gun tatilleri dondurur. ayni gune gelen bayramlari tek sayar.)
         
         Models/
-            User.cs (butun kullanicilarin ortak temel sinifi.  Kimlik, ad soyad, e-posta, telefon vb...)
-            Student.cs (ogrenciyi temsil eder. user dan turetilir. ogrenciyi yetkilerini tanimlar)
+            User.cs (butun kullanicilarin ortak temel sinifi. kimlik, yabanci kullanici bilgisi, ad soyad, e-posta, telefon vb... kimlik kontrolunu IsForeign bilgisine gore secer.)
+            Student.cs (ogrenciyi temsil eder. user dan turetilir. ogrenci yetkilerini tanimlar. yabanci ogrenci icin isForeign bilgisi verilebilir.)
             Admin.cs (admini temsil eder. user dan turetilmistir. admin yetkilerini tanimlar)
             BaseDocument.cs (Belgelerin ortak temel sinifidir.dosya yolu, yuklenme zamani, onay/ret bilgileri ve ortak dosya kontrollerini icerir.)
             Ek16Document.cs (Ek-16 belgesini temsil eder.uzantilari, dosya boyutunu ve dosya iceriginin baslangic baytlarini kontrol eder.)
@@ -65,11 +67,11 @@ Staj_Evrak_Sistemi/
             AcademicCalendar.cs (ogretim yilini ve guz/bahar ders tarihlerini tasir. takvim olusturulurken ogretim yili bicimini ve tarih araliklarini kontrol eder.)
         
         Services/
-            AuthService.cs	(Kullanici kaydi, giris, hesap kilitleme ve basarisiz giris kayitlarini yonetir.)
+            AuthService.cs	(Kullanici kaydi, giris, hesap kilitleme ve basarisiz giris kayitlarini yonetir. kayitta kimlik kontrolu yapar. yabanci kullanici bilgisini veritabanina kaydeder ve giriste geri yukler.)
             AuthorizationService.cs	(Oturum, rol ve basvuru sahipligine gore kullanicinin islem yapma yetkisini kontrol eder.)
             AuthorizationResult.cs	(Yetki kontrolunun sonucunu tasir: izin verildi, giris gerekli veya yetkisiz erisim.)
             AuthorizationExceptions.cs	(Giris yapilmamasi ve yetkisiz erisim durumlarinda kullanilacak hata siniflarini tanimlar.)
-            DatasetImportService.cs	(Adminin CSV/JSON veri setini okur, kayitlari kontrol eder ve veritabanina aktarir.)
+            DatasetImportService.cs	(Adminin CSV/JSON veri setini okur, kimlik bilgilerini kontrol eder ve veritabanina aktarir. T.C. kontrol hanesi veya yabanci kimlik bicimi hatali satirlar raporlanir.)
             DatasetImportResult.cs	(Veri seti aktariminin sonuclarini tasir: eklenen, tekrarlanan ve hatali kayitlar gibi.)
             DocumentService.cs	(Ek-16 yukleme, dosyayi depolama, belge kaydi olusturma, listeleme ve silme islemlerini yapar.)
             DocumentValidationException.cs	(Dosya kabul edilmediginde, ornegin formati veya boyutu uygun degilse, hata nedenlerini tasir.)
@@ -89,7 +91,7 @@ Staj_Evrak_Sistemi/
 ---------------------------------------------------------------------------------------------
 Gelistirme durumu
 
-Temel veritabani, kullanici islemleri, yetkilendirme, basvuru yonetimi, veri seti aktarimi ve belge yukleme servisleri gelistirilmistir. Ogretim yili bicimi, takvimle yil eslesmesi, 30 gun kurali ve ders donemi cakisma kontrolleri de eklendi. tarih kontrolleri henuz basvuru akisina baglanmadi. Net staj gunu hesabi, minimum gun ve belgedeki gun sayisiyla eslesme kontrolleri de eklendi. 2026 ve 2027 resmi tatil takvimi hazir. basvuru olusturulurken ve guncellenirken net gun yeniden hesaplaniyor ve kaydediliyor. minimum gun sayisi ayarlanmissa kayit sirasinda kontrol ediliyor. Web arayuzuyle entegrasyon henuz yapilmamistir.
+Temel veritabani, kullanici islemleri, yetkilendirme, basvuru yonetimi, veri seti aktarimi ve belge yukleme servisleri gelistirilmistir. Ogretim yili bicimi, takvimle yil eslesmesi, 30 gun kurali ve ders donemi cakisma kontrolleri de eklendi. tarih kontrolleri henuz basvuru akisina baglanmadi. Net staj gunu hesabi, minimum gun ve belgedeki gun sayisiyla eslesme kontrolleri de eklendi. 2026 ve 2027 resmi tatil takvimi hazir. basvuru olusturulurken ve guncellenirken net gun yeniden hesaplaniyor ve kaydediliyor. minimum gun sayisi ayarlanmissa kayit sirasinda kontrol ediliyor. Yeni kullanici kaydi ve veri seti aktariminda T.C. kontrol haneleri ve yabanci kimlik kurallari denetleniyor. Turkiye umuma mahsus pasaport icin ayri bicim kontrolu eklendi. Web arayuzuyle entegrasyon henuz yapilmamistir.
 ---------------------------------------------------------------------------------------------
 Yapilacak isler
 
@@ -101,7 +103,9 @@ Resmi tatil takviminin diger yillar icin genisletilmesi.
 
 Minimum staj gunu sartinin netlestirilmesi ve Ek-16 dan okunan gun sayisinin karsilastirmaya baglanmasi.
 
-Mevcut kimlik dogrulama kurallarinin basvuru akisina baglanmasi.
+Kimlik kontrollerinin belgeden okunan alanlara ve zorunlu onay akisina baglanmasi.
+
+Pasaport bilgisinin gerekli form alanlarina baglanmasi. diger pasaport turleri ve ulkeler icin kurallarin netlestirilmesi.
 
 Adres, telefon, e-posta ve faks kontrollerinin tamamlanmasi.
 
@@ -154,4 +158,17 @@ Kaynaklar:
 2026 resmi tatiller: https://vakithesaplama.diyanet.gov.tr/icerik.php?icerik=158
 2027 resmi tatiller: https://vakithesaplama.diyanet.gov.tr/icerik.php?icerik=159
 Tatil kurallari: https://vakithesaplama.diyanet.gov.tr/2429_kanun.php
+---------------------------------------------------------------------------------------------
+Kimlik kontrolleri
+T.C. kimlik numarasi 11 rakamdan olusmali ve ilk rakami sifir olmamali.
+10. ve 11. haneler hesaplanarak numaradaki degerlerle karsilastiriliyor.
+Yeni kullanici kaydinda kontrol haneleri hataliysa hesap acilmiyor. yeni CSV/JSON aktariminda ise hatali satir raporlaniyor.
+Yabanci ogrenci icin isForeign bilgisi true verilmeli. varsayilan deger false, yani T.C. kullanicisi.
+Yabanci kimlikte proje kuralina gore 11 rakam ve 99 ile baslama kontrolu yapiliyor. T.C. kontrol hanesi hesabi yabanci kimlige uygulanmiyor.
+IsForeign bilgisi veritabaninda saklaniyor ve giris yapildiginda geri yukleniyor.
+Mevcut hesaplar korunuyor. checksum kurali yeni kayitlarda ve yeni veri seti aktarimlarinda uygulanir.
+Pasaport icin Turkiye umuma mahsus numara bicimi kontrol edilebiliyor: U harfi ve ardindan 8 rakam. ornek: U12345678.
+Pasaport kontrolu ayri bir metot. hesap kaydinda T.C. veya yabanci kimlik numarasinin yerine gecmiyor. diger pasaport turleri ve ulkeler bu metodun kapsaminda degil.
+Bu kontroller yalnizca bicim ve matematiksel kontrol yapiyor. numaranin gercek bir kisiye ait oldugu resmi bir servisten sorgulanmiyor.
+Pasaport bicimi icin ornek kaynak: https://smarteritaly.agid.gov.it/wp-content/uploads/2024/04/IQ-Structures_presentazione.pdf
 ---------------------------------------------------------------------------------------------

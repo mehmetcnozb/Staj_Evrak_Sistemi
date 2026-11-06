@@ -9,10 +9,12 @@ public class Student : User
 {
     private string _studentNumber = string.Empty;
 
-    public Student(string identityNumber, string studentNumber, string fullName, string email, string? phone = null)
+    public Student(string identityNumber, string studentNumber, string fullName, string email, string? phone = null,
+        bool isForeign = false)
         : base(identityNumber, fullName, email, phone)
     {
         StudentNumber = studentNumber;
+        IsForeign = isForeign;
     }
 
     public string StudentNumber

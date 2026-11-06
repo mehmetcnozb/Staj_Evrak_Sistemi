@@ -27,6 +27,9 @@ public abstract class User
     // Kimlik bilgileri
     public int Id { get; internal set; }
 
+    // Kimlik kontrolunde T.C. veya yabanci kimlik kuralinin secilmesini saglar.
+    public bool IsForeign { get; set; }
+
     public string IdentityNumber
     {
         get => _identityNumber;
@@ -98,7 +101,7 @@ public abstract class User
     /// </summary>
     public virtual bool Validate()
     {
-        return IsValidIdentityNumber(IdentityNumber)
+        return IsValidIdentityNumber(IdentityNumber, IsForeign)
             && FullName.Length >= 3
             && MailAddress.TryCreate(Email, out _)
             && (Phone is null || IsValidPhone(Phone))
@@ -114,9 +117,9 @@ public abstract class User
 
     public override string ToString() => GetDisplayName();
 
-    // Şartname 6.2: 11 hane, yalnızca rakam, ilk hane 0 değil. Uyruğa özgü kural (99 öneki) ve isteğe bağlı
-    // algoritma kontrolü ayrı bir kuraldır: IdentityNumberValidator.IsValidForNationality / IsValid.
-    protected static bool IsValidIdentityNumber(string value) => IdentityNumberValidator.IsValidFormat(value);
+    // Kayitta T.C. kontrol haneleri, yabanci ogrencide ise 99 oneki denetlenir.
+    protected static bool IsValidIdentityNumber(string value, bool isForeign) =>
+        IdentityNumberValidator.IsValidForNationality(value, isForeign, validateChecksum: true);
 
     protected static bool IsValidPhone(string value)
     {

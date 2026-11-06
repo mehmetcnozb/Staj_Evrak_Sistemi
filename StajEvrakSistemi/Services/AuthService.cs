@@ -20,7 +20,7 @@ public class AuthService
     public const int MinPasswordLength = 8;
 
     private const string SelectUserColumns =
-        "Id, IdentityNumber, StudentNumber, FullName, Email, Phone, PasswordHash, Role, CreatedAt, FailedLoginAttempts, LockoutEnd";
+        "Id, IdentityNumber, StudentNumber, FullName, Email, Phone, PasswordHash, Role, CreatedAt, FailedLoginAttempts, LockoutEnd, IsForeign";
 
     private readonly DatabaseManager _database;
     private readonly Func<DateTime> _utcNow;
@@ -47,6 +47,11 @@ public class AuthService
         using var connection = _database.GetConnection();
         EnsureCanRegister(connection, user, createdBy);
 
+        if (!IdentityNumberValidator.IsValidForNationality(user.IdentityNumber, user.IsForeign, validateChecksum: true))
+            throw new ArgumentException(user.IsForeign
+                ? "Yabanci kimlik numarasi 11 rakamdan olusmali ve 99 ile baslamali."
+                : "T.C. kimlik numarasinin bicimi veya kontrol haneleri gecersiz.", nameof(user));
+
         string passwordHash = PasswordHasher.HashPassword(password);
         user.SetPasswordHash(passwordHash);
 
@@ -55,8 +60,8 @@ public class AuthService
 
         using var command = connection.CreateCommand();
         command.CommandText = """
-            INSERT INTO Users (IdentityNumber, StudentNumber, FullName, Email, Phone, PasswordHash, Role, CreatedAt)
-            VALUES ($identity, $studentNumber, $fullName, $email, $phone, $hash, $role, $createdAt);
+            INSERT INTO Users (IdentityNumber, StudentNumber, FullName, Email, Phone, PasswordHash, Role, CreatedAt, IsForeign)
+            VALUES ($identity, $studentNumber, $fullName, $email, $phone, $hash, $role, $createdAt, $isForeign);
             SELECT last_insert_rowid();
             """;
         command.Parameters.AddWithValue("$identity", user.IdentityNumber);
@@ -67,6 +72,7 @@ public class AuthService
         command.Parameters.AddWithValue("$hash", passwordHash);
         command.Parameters.AddWithValue("$role", user.Role.ToString());
         command.Parameters.AddWithValue("$createdAt", ToDbDate(user.CreatedAt));
+        command.Parameters.AddWithValue("$isForeign", user.IsForeign ? 1 : 0);
 
         try
         {
@@ -248,6 +254,7 @@ public class AuthService
         user.CreatedAt = FromDbDate(reader.GetString(8));
         user.FailedLoginAttempts = reader.GetInt32(9);
         user.LockoutEnd = reader.IsDBNull(10) ? null : FromDbDate(reader.GetString(10));
+        user.IsForeign = reader.GetInt32(11) == 1;
 
         return (user, passwordHash);
     }
