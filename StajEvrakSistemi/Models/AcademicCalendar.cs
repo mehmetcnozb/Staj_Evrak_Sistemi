@@ -1,3 +1,5 @@
+using StajEvrakSistemi.Core;
+
 namespace StajEvrakSistemi.Models;
 
 public sealed class AcademicCalendar
@@ -15,8 +17,8 @@ public sealed class AcademicCalendar
         DateTime springStartDate,
         DateTime springEndDate)
     {
-        if (string.IsNullOrWhiteSpace(academicYear))
-            throw new ArgumentException("Ogretim yili bos olamaz.", nameof(academicYear));
+        if (!InternshipDateValidator.IsAcademicYearValid(academicYear))
+            throw new ArgumentException("Ogretim yili 2026-2027 gibi ardisik iki yildan olusmali.", nameof(academicYear));
 
         if (fallEndDate.Date < fallStartDate.Date)
             throw new ArgumentException("Guz donemi bitisi baslangictan once olamaz.", nameof(fallEndDate));

@@ -1,3 +1,4 @@
+using System.Globalization;
 using StajEvrakSistemi.Models;
 
 namespace StajEvrakSistemi.Core;
@@ -5,6 +6,34 @@ namespace StajEvrakSistemi.Core;
 public static class InternshipDateValidator
 {
     public const int MinimumLeadDays = 30;
+
+    // Ogretim yili 2026-2027 biciminde ve ardisik iki yildan olusmali.
+    public static bool IsAcademicYearValid(string? academicYear)
+    {
+        if (string.IsNullOrWhiteSpace(academicYear))
+            return false;
+
+        string value = academicYear.Trim();
+        if (value.Length != 9 || value[4] != '-')
+            return false;
+
+        bool firstYearParsed = int.TryParse(value.AsSpan(0, 4), NumberStyles.None,
+            CultureInfo.InvariantCulture, out int firstYear);
+        bool secondYearParsed = int.TryParse(value.AsSpan(5, 4), NumberStyles.None,
+            CultureInfo.InvariantCulture, out int secondYear);
+
+        return firstYearParsed && secondYearParsed
+            && firstYear >= 1 && secondYear == firstYear + 1;
+    }
+
+    // Basvurunun ogretim yili secilen takvimin yiliyla ayni olmali.
+    public static bool MatchesAcademicCalendar(string? academicYear, AcademicCalendar calendar)
+    {
+        ArgumentNullException.ThrowIfNull(calendar);
+
+        return IsAcademicYearValid(academicYear)
+            && string.Equals(academicYear!.Trim(), calendar.AcademicYear, StringComparison.Ordinal);
+    }
 
     // Basvuru ile staj baslangici arasinda en az 30 takvim gunu olmali.
     public static bool IsSubmissionOnTime(DateTime submissionDate, DateTime internshipStartDate)
