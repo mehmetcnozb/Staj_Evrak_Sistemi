@@ -14,6 +14,7 @@ Mevcut ozellikler:
 *bilgi karsilastirma       - onceden okunup servise verilen ogrenci numarasi, kimlik numarasi, ad soyad, bolum ve ogretim yili karsilastirilabiliyor.
 *durum takibi              - degisiklik gecmisi tutuyor. tamamlanan basvurularda ogrencinin degistirmesi engelleniyor. admin degistiriyor.
 *tarih kontrolleri         - ogretim yili bicimi, takvimle yil eslesmesi, 30 gun kurali ve ders donemi cakismasi kontrol edilebiliyor. bu kontroller henuz basvuru akisina baglanmadi.
+*staj gunu hesabi          - secilen calisma gunleri ve verilen tatil listesine gore net staj gunu hesaplaniyor. minimum gun ve Ek-16 da belirtilen gun sayisiyla eslesme kontrolu de bulunuyor. henuz basvuru akisina baglanmadi.
 ---------------------------------------------------------------------------------------------
 Projede kullanilan teknolojiler:
 C#                     - uygulamanin yazildigi temel programlama dili
@@ -41,6 +42,7 @@ Staj_Evrak_Sistemi/
             RolePermissions.cs (Permission.cs deki islemleri, hangi rollerin yapabilecegini kisitlar)
             UserRole.cs (Aktif olan kullanici rollerini tanimlar.)
             InternshipDateValidator.cs (ogretim yilinin dogru yazilip yazilmadigini ve takvimle ayni yilda olup olmadigini kontrol eder. 30 gun kuralini, son teslim tarihini ve ders donemi cakismasini da kontrol eder.)
+            InternshipDayCalculator.cs (secilen calisma gunleri ve verilen tatil listesiyle net staj gununu hesaplar. minimum gun sartini ve Ek-16 da belirtilen gun sayisiyla eslesmeyi kontrol eder.)
 
         
         Data/
@@ -86,7 +88,7 @@ Staj_Evrak_Sistemi/
 ---------------------------------------------------------------------------------------------
 Gelistirme durumu
 
-Temel veritabani, kullanici islemleri, yetkilendirme, basvuru yonetimi, veri seti aktarimi ve belge yukleme servisleri gelistirilmistir. Ogretim yili bicimi, takvimle yil eslesmesi, 30 gun kurali ve ders donemi cakisma kontrolleri de eklendi. tarih kontrolleri henuz basvuru akisina baglanmadi. Web arayuzuyle entegrasyon henuz yapilmamistir.
+Temel veritabani, kullanici islemleri, yetkilendirme, basvuru yonetimi, veri seti aktarimi ve belge yukleme servisleri gelistirilmistir. Ogretim yili bicimi, takvimle yil eslesmesi, 30 gun kurali ve ders donemi cakisma kontrolleri de eklendi. tarih kontrolleri henuz basvuru akisina baglanmadi. Net staj gunu hesabi, minimum gun ve belgedeki gun sayisiyla eslesme kontrolleri de eklendi. tatil listesi disaridan veriliyor. staj gunu hesabi henuz basvuru akisina baglanmadi. Web arayuzuyle entegrasyon henuz yapilmamistir.
 ---------------------------------------------------------------------------------------------
 Yapilacak isler
 
@@ -94,7 +96,9 @@ Yariyil bilgisinin ve staj tarihlerinin secilen akademik takvimle uyumunun kontr
 
 Hazirlanan tarih kontrollerinin basvuru akisina baglanmasi.
 
-Staj gunlerinin hesaplanmasi ve resmi tatillerin cikarilmasi.
+Resmi tatil takviminin eklenmesi ve staj gunu hesabinin basvuru akisina baglanmasi.
+
+Minimum staj gunu sartinin netlestirilmesi ve Ek-16 dan okunan gun sayisinin karsilastirmaya baglanmasi.
 
 Mevcut kimlik dogrulama kurallarinin basvuru akisina baglanmasi.
 
@@ -134,4 +138,13 @@ bahar   -       8 Subat 2027        -       28 Mayis 2027
 
 Bu cakisma kontrolu sadece ders donemlerini kapsiyor. sinav donemleri ve resmi tatiller dahil degil.
 Kontrol metotlari hazir. basvuru akisina ve web arayuzune baglanmasi henuz yapilmadi.
+---------------------------------------------------------------------------------------------
+Staj gunu hesabi
+Baslangic ve bitis gunleri dahil, ogrencinin sectigi haftalik calisma gunleri sayiliyor.
+Pazar gunleri sayilmiyor. cumartesi sadece calisma gunu olarak secilmisse sayiliyor.
+Verilen tatil listesinde tam gun tatil 1, yarim gun tatil 0.5 olarak tutuluyor.
+Tatil zaten calisilmayan bir gune denk gelirse tekrar dusulmuyor.
+Net gun sayisinin disaridan verilen minimuma ulasip ulasmadigi kontrol edilebiliyor. sabit bir minimum belirlenmedi.
+Hesaplanan sonuc ile Ek-16 da belirtilen gun sayisi karsilastirilabiliyor. gun sayisini su an metoda vermek gerekiyor, belgeden otomatik okunmuyor.
+Hesaplama metotlari hazir. resmi tatil takvimi ve basvuru akisina baglantisi henuz eklenmedi.
 ---------------------------------------------------------------------------------------------
