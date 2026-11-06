@@ -71,6 +71,7 @@ public class DatabaseManager
         EnsureColumn(connection, transaction, "Internships", "Email", "TEXT");
         EnsureColumn(connection, transaction, "Internships", "Fax", "TEXT");
         EnsureColumn(connection, transaction, "Internships", "WorkDays", "TEXT");
+        EnsureColumn(connection, transaction, "Internships", "NetWorkDays", "REAL NOT NULL DEFAULT 0");
         EnsureColumn(connection, transaction, "Internships", "EngineerCount", "INTEGER NOT NULL DEFAULT 0");
         EnsureColumn(connection, transaction, "Internships", "CreatedAt", "TEXT");
 
@@ -147,7 +148,7 @@ public class DatabaseManager
             AcademicYear    TEXT    NOT NULL,
             StartDate       TEXT    NOT NULL,
             EndDate         TEXT    NOT NULL,
-            NetWorkDays     INTEGER NOT NULL DEFAULT 0,
+            NetWorkDays     REAL    NOT NULL DEFAULT 0,
             CompanyName     TEXT    NOT NULL,
             HasEngineer     INTEGER NOT NULL DEFAULT 0 CHECK (HasEngineer IN (0, 1)),
             Status          TEXT    NOT NULL DEFAULT 'Uploaded'

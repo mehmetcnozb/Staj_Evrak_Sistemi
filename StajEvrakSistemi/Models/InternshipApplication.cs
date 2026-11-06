@@ -48,6 +48,9 @@ public class InternshipApplication
     /// </summary>
     public IList<DayOfWeek> WorkDays { get; set; } = new List<DayOfWeek>();
 
+    // Secilen gunler ve resmi tatillerle hesaplanir. Yarim gunleri de saklar.
+    public decimal NetWorkDays { get; internal set; }
+
     public int EngineerCount { get; set; }
 
     public string? GoogleFormUrl { get; set; }

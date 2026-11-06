@@ -14,7 +14,7 @@ Mevcut ozellikler:
 *bilgi karsilastirma       - onceden okunup servise verilen ogrenci numarasi, kimlik numarasi, ad soyad, bolum ve ogretim yili karsilastirilabiliyor.
 *durum takibi              - degisiklik gecmisi tutuyor. tamamlanan basvurularda ogrencinin degistirmesi engelleniyor. admin degistiriyor.
 *tarih kontrolleri         - ogretim yili bicimi, takvimle yil eslesmesi, 30 gun kurali ve ders donemi cakismasi kontrol edilebiliyor. bu kontroller henuz basvuru akisina baglanmadi.
-*staj gunu hesabi          - secilen calisma gunleri ve verilen tatil listesine gore net staj gunu hesaplaniyor. minimum gun ve Ek-16 da belirtilen gun sayisiyla eslesme kontrolu de bulunuyor. henuz basvuru akisina baglanmadi.
+*staj gunu hesabi          - secilen calisma gunleri ve 2026-2027 resmi tatil takvimine gore net staj gunu hesaplaniyor. basvuru olusturulurken ve guncellenirken sonuc kaydediliyor. minimum gun sayisi ayarlanmissa kontrol ediliyor. Ek-16 da belirtilen gun sayisiyla eslesme metodu da bulunuyor.
 ---------------------------------------------------------------------------------------------
 Projede kullanilan teknolojiler:
 C#                     - uygulamanin yazildigi temel programlama dili
@@ -48,6 +48,7 @@ Staj_Evrak_Sistemi/
         Data/
             DatabaseManager.cs (uygulamanin SQLite veritabanina baglanmasini ve gerekli tablolarin hazirlanmasini saglar.)
             AcademicCalendars.cs (kocaeli universitesinin 2026-2027 guz ve bahar ders baslangic ve bitis tarihlerini saklar.)
+            TurkishPublicHolidays.cs (2026 ve 2027 resmi tatillerini saklar. verilen tarih araligindaki tam ve yarim gun tatilleri dondurur. ayni gune gelen bayramlari tek sayar.)
         
         Models/
             User.cs (butun kullanicilarin ortak temel sinifi.  Kimlik, ad soyad, e-posta, telefon vb...)
@@ -55,7 +56,7 @@ Staj_Evrak_Sistemi/
             Admin.cs (admini temsil eder. user dan turetilmistir. admin yetkilerini tanimlar)
             BaseDocument.cs (Belgelerin ortak temel sinifidir.dosya yolu, yuklenme zamani, onay/ret bilgileri ve ortak dosya kontrollerini icerir.)
             Ek16Document.cs (Ek-16 belgesini temsil eder.uzantilari, dosya boyutunu ve dosya iceriginin baslangic baytlarini kontrol eder.)
-            InternshipApplication.cs (ogrencinin staj basvurusunu temsil eder. Tarihler, isyeri, bolum, iletisim bilgileri, calisma gunleri, muhendis sayisi ve basvuru durumunu icerir.)
+            InternshipApplication.cs (ogrencinin staj basvurusunu temsil eder. Tarihler, isyeri, bolum, iletisim bilgileri, calisma gunleri, hesaplanan net staj gunu, muhendis sayisi ve basvuru durumunu icerir.)
             OfficialStudentRecord.cs (Adminin yukledigi referans veri setindeki bir ogrenci kaydini temsil eder. ogrenci, kimlik, uyruk, ogrenim ve iletisim bilgilerini iserir.InternshipApplication.cs ile karsilastirilirken kullanilir. )
             Ek16ComparisonResult.cs (Veri setiyle yapilan karsilastirmanin sonucunu tasir. Eslesen kayit ve alanlar arasindaki uyusmazliklari icerir.)
             ScannedDocumentComparisonResult.cs (ogrencinin girdigi bilgilerle belgeden gelen alanlarin karsilastirma sonucunu tasir. Ayni dosyada, okunmus belge alanlarini tasiyan ScannedDocumentFields modeli de bulunur.)
@@ -73,7 +74,7 @@ Staj_Evrak_Sistemi/
             DocumentService.cs	(Ek-16 yukleme, dosyayi depolama, belge kaydi olusturma, listeleme ve silme islemlerini yapar.)
             DocumentValidationException.cs	(Dosya kabul edilmediginde, ornegin formati veya boyutu uygun degilse, hata nedenlerini tasir.)
             Ek16MatcherService.cs	(ogrenci bilgilerini, belgeden gelen alanlari ve adminin veri setini karsilastirip uyusmazliklari belirler.)
-            InternshipService.cs	(Staj basvurusu olusturma, goruntuleme, guncelleme, silme ve duruma gore listeleme islemlerini yapar.)
+            InternshipService.cs	(Staj basvurusu olusturma, goruntuleme, guncelleme, silme ve listeleme islemlerini yapar. net staj gununu resmi tatillerle hesaplayip kaydeder. minimum gun sayisi verilmisse kontrol eder.)
             LoginResult.cs	(Giris isleminin sonucunu tasir: basarili giris, yanlis bilgiler veya kilitli hesap.)
             PasswordHasher.cs	(sifreleri rastgele salt kullanarak hash ler; giriste verilen sifreyi kayitli hash ile dogrular.)
             SessionManager.cs	(Kullanici oturumlarini olusturur, token ve sure kontrolu yapar, cikista oturumu kapatir.)
@@ -88,7 +89,7 @@ Staj_Evrak_Sistemi/
 ---------------------------------------------------------------------------------------------
 Gelistirme durumu
 
-Temel veritabani, kullanici islemleri, yetkilendirme, basvuru yonetimi, veri seti aktarimi ve belge yukleme servisleri gelistirilmistir. Ogretim yili bicimi, takvimle yil eslesmesi, 30 gun kurali ve ders donemi cakisma kontrolleri de eklendi. tarih kontrolleri henuz basvuru akisina baglanmadi. Net staj gunu hesabi, minimum gun ve belgedeki gun sayisiyla eslesme kontrolleri de eklendi. tatil listesi disaridan veriliyor. staj gunu hesabi henuz basvuru akisina baglanmadi. Web arayuzuyle entegrasyon henuz yapilmamistir.
+Temel veritabani, kullanici islemleri, yetkilendirme, basvuru yonetimi, veri seti aktarimi ve belge yukleme servisleri gelistirilmistir. Ogretim yili bicimi, takvimle yil eslesmesi, 30 gun kurali ve ders donemi cakisma kontrolleri de eklendi. tarih kontrolleri henuz basvuru akisina baglanmadi. Net staj gunu hesabi, minimum gun ve belgedeki gun sayisiyla eslesme kontrolleri de eklendi. 2026 ve 2027 resmi tatil takvimi hazir. basvuru olusturulurken ve guncellenirken net gun yeniden hesaplaniyor ve kaydediliyor. minimum gun sayisi ayarlanmissa kayit sirasinda kontrol ediliyor. Web arayuzuyle entegrasyon henuz yapilmamistir.
 ---------------------------------------------------------------------------------------------
 Yapilacak isler
 
@@ -96,7 +97,7 @@ Yariyil bilgisinin ve staj tarihlerinin secilen akademik takvimle uyumunun kontr
 
 Hazirlanan tarih kontrollerinin basvuru akisina baglanmasi.
 
-Resmi tatil takviminin eklenmesi ve staj gunu hesabinin basvuru akisina baglanmasi.
+Resmi tatil takviminin diger yillar icin genisletilmesi.
 
 Minimum staj gunu sartinin netlestirilmesi ve Ek-16 dan okunan gun sayisinin karsilastirmaya baglanmasi.
 
@@ -142,9 +143,15 @@ Kontrol metotlari hazir. basvuru akisina ve web arayuzune baglanmasi henuz yapil
 Staj gunu hesabi
 Baslangic ve bitis gunleri dahil, ogrencinin sectigi haftalik calisma gunleri sayiliyor.
 Pazar gunleri sayilmiyor. cumartesi sadece calisma gunu olarak secilmisse sayiliyor.
-Verilen tatil listesinde tam gun tatil 1, yarim gun tatil 0.5 olarak tutuluyor.
+2026 ve 2027 resmi tatilleri tarih araligina gore otomatik aliniyor. tam gun tatil 1, yarim gun tatil 0.5 olarak tutuluyor.
+Cuma aksam biten tatilin ertesi cumartesisi de tatil sayiliyor. ayni tarihe iki bayram denk gelirse bir kez dusuluyor.
 Tatil zaten calisilmayan bir gune denk gelirse tekrar dusulmuyor.
-Net gun sayisinin disaridan verilen minimuma ulasip ulasmadigi kontrol edilebiliyor. sabit bir minimum belirlenmedi.
+Servis olusturulurken minimum gun sayisi verilmisse, bu sinirin altindaki basvuru kaydedilmiyor. sabit bir minimum belirlenmedi.
 Hesaplanan sonuc ile Ek-16 da belirtilen gun sayisi karsilastirilabiliyor. gun sayisini su an metoda vermek gerekiyor, belgeden otomatik okunmuyor.
-Hesaplama metotlari hazir. resmi tatil takvimi ve basvuru akisina baglantisi henuz eklenmedi.
+Net gun hesabi basvuru olusturma ve guncelleme islemlerine baglandi. tarih veya calisma gunu degisince yeniden hesaplaniyor. yarim gunler de veritabaninda saklaniyor.
+Tatil takvimi su an sadece 2026 ve 2027 icin hazir. baska yil girilirse uyari veriliyor.
+Kaynaklar:
+2026 resmi tatiller: https://vakithesaplama.diyanet.gov.tr/icerik.php?icerik=158
+2027 resmi tatiller: https://vakithesaplama.diyanet.gov.tr/icerik.php?icerik=159
+Tatil kurallari: https://vakithesaplama.diyanet.gov.tr/2429_kanun.php
 ---------------------------------------------------------------------------------------------
