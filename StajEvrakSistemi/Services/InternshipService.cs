@@ -7,13 +7,14 @@ using StajEvrakSistemi.Models;
 namespace StajEvrakSistemi.Services;
 
 /// <summary>
-/// Öğrencinin sisteme girdiği staj başvuru bilgilerini kaydeder, günceller ve listeler.
-/// Güncelleme/silme kuralları (Tamamlandı'da öğrenci için kilit vb.) StatusWorkflowEngine'den gelir.
-/// Alan biçimi doğrulamaları (adres, telefon, tarih/gün hesabı...) bu serviste değil, ayrı doğrulama katmanındadır.
+/// Ogrencinin staj basvurusunu kaydeder, gunceller ve listeler.
+/// Guncelleme ve silme izinleri StatusWorkflowEngine'den gelir.
+/// Format ve tarih kontrolleri ayri dogrulama siniflariyla kayit sirasinda uygulanir.
 /// </summary>
 public class InternshipService
 {
     private const string DateFormat = "yyyy-MM-dd";
+    private static readonly TimeZoneInfo TurkeyTimeZone = TimeZoneInfo.FindSystemTimeZoneById("Europe/Istanbul");
 
     private const string SelectColumns = """
         Id, StudentId, AcademicYear, Semester, StartDate, EndDate, CompanyName, Department, Address, Phone, Email, Fax,
@@ -50,7 +51,9 @@ public class InternshipService
         if (!student.HasPermission(Permission.UploadDocument))
             throw new ForbiddenAccessException("403 Yetkisiz Erişim: Staj başvurusunu yalnızca öğrenci oluşturabilir.");
 
+        DateTime createdAt = _utcNow();
         ValidateBasics(application);
+        ValidateDates(application, createdAt);
         decimal netWorkDays = CalculateNetWorkDays(application);
 
         using var connection = _database.GetConnection();
@@ -70,12 +73,13 @@ public class InternshipService
             """;
         BindApplication(command, application, netWorkDays);
         command.Parameters.AddWithValue("$studentId", student.Id);
-        command.Parameters.AddWithValue("$createdAt", _utcNow().ToString("o", CultureInfo.InvariantCulture));
+        command.Parameters.AddWithValue("$createdAt", createdAt.ToString("o", CultureInfo.InvariantCulture));
 
         application.Id = Convert.ToInt32(command.ExecuteScalar(), CultureInfo.InvariantCulture);
         application.StudentId = student.Id;
         application.Status = ApplicationStatus.Uploaded;
         application.NetWorkDays = netWorkDays;
+        application.CreatedAt = createdAt;
         return application.Id;
     }
 
@@ -89,9 +93,11 @@ public class InternshipService
         ArgumentNullException.ThrowIfNull(application);
         _engine.ValidateUpdateOperation(application.Id, user);
         ValidateBasics(application);
-        decimal netWorkDays = CalculateNetWorkDays(application);
 
         using var connection = _database.GetConnection();
+        DateTime createdAt = LoadCreatedAt(connection, application.Id);
+        ValidateDates(application, createdAt);
+        decimal netWorkDays = CalculateNetWorkDays(application);
         using var transaction = connection.BeginTransaction();
         using var command = connection.CreateCommand();
         command.Transaction = transaction;
@@ -119,6 +125,7 @@ public class InternshipService
         transaction.Commit();
         application.NetWorkDays = netWorkDays;
         application.Ek16Verified = false;
+        application.CreatedAt = createdAt;
     }
 
     /// <summary>
@@ -200,14 +207,36 @@ public class InternshipService
             throw new ArgumentException("Öğretim yılı boş olamaz.", nameof(application));
         if (string.IsNullOrWhiteSpace(application.CompanyName))
             throw new ArgumentException("İşyeri adı boş olamaz.", nameof(application));
-        if (application.EndDate < application.StartDate)
-            throw new ArgumentException("Staj bitiş tarihi başlangıç tarihinden önce olamaz.", nameof(application));
         if (application.EngineerCount < 0)
             throw new ArgumentException("Mühendis sayısı negatif olamaz.", nameof(application));
 
         var formatErrors = FormatValidator.GetApplicationErrors(application);
         if (formatErrors.Count > 0)
             throw new ArgumentException(string.Join(" ", formatErrors), nameof(application));
+    }
+
+    private static void ValidateDates(InternshipApplication application, DateTime createdAt)
+    {
+        // Otuz gun hesabi UTC saatiyle degil, Turkiye'deki takvim tarihiyle yapilir.
+        DateTime submissionDate = TimeZoneInfo.ConvertTimeFromUtc(
+            DateTime.SpecifyKind(createdAt, DateTimeKind.Utc), TurkeyTimeZone).Date;
+        var errors = InternshipDateValidator.GetApplicationErrors(
+            application, submissionDate, AcademicCalendars.Kocaeli2026_2027);
+        if (errors.Count > 0)
+            throw new ArgumentException(string.Join(" ", errors), nameof(application));
+    }
+
+    private static DateTime LoadCreatedAt(SqliteConnection connection, int applicationId)
+    {
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT CreatedAt FROM Internships WHERE Id = $id;";
+        command.Parameters.AddWithValue("$id", applicationId);
+        if (command.ExecuteScalar() is not string createdAt || string.IsNullOrWhiteSpace(createdAt))
+            throw new InvalidOperationException("Kayitli ilk basvuru tarihi bulunamadi. Tarih kontrolu icin bu bilgi gerekli.");
+
+        // Formdan gelen tarih yerine veritabaninda saklanan ilk kayit zamani kullanilir.
+        return DateTime.Parse(createdAt, CultureInfo.InvariantCulture,
+            DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal);
     }
 
     private decimal CalculateNetWorkDays(InternshipApplication application)

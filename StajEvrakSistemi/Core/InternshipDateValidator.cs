@@ -7,6 +7,46 @@ public static class InternshipDateValidator
 {
     public const int MinimumLeadDays = 30;
 
+    // Kayit akisinin kullanacagi ortak tarih kontrolleri.
+    public static IReadOnlyList<string> GetApplicationErrors(
+        InternshipApplication application, DateTime submissionDate, AcademicCalendar calendar)
+    {
+        ArgumentNullException.ThrowIfNull(application);
+        ArgumentNullException.ThrowIfNull(calendar);
+        var errors = new List<string>();
+
+        if (!IsAcademicYearValid(application.AcademicYear))
+            errors.Add("Ogretim yili 2026-2027 gibi ardisik iki yildan olusmali.");
+        else if (!MatchesAcademicCalendar(application.AcademicYear, calendar))
+            errors.Add($"Bu ogretim yili icin akademik takvim tanimli degil. Desteklenen yil: {calendar.AcademicYear}.");
+
+        if (application.StartDate == default || application.EndDate == default)
+        {
+            errors.Add("Staj baslangic ve bitis tarihleri girilmeli.");
+            return errors;
+        }
+        if (application.EndDate.Date < application.StartDate.Date)
+        {
+            errors.Add("Staj bitisi baslangictan once olamaz.");
+            return errors;
+        }
+
+        if (!IsSubmissionOnTime(submissionDate, application.StartDate))
+        {
+            string message = $"Basvuru staj baslangicindan en az {MinimumLeadDays} takvim gunu once yapilmali.";
+            if (application.StartDate.Date >= DateTime.MinValue.AddDays(MinimumLeadDays))
+                message += $" Son teslim tarihi: {GetLatestSubmissionDate(application.StartDate).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)}.";
+            errors.Add(message);
+        }
+
+        // Baska bir yilin dersleri secilen takvimle kontrol edilemez.
+        if (MatchesAcademicCalendar(application.AcademicYear, calendar)
+            && HasClassPeriodConflict(application.StartDate, application.EndDate, calendar))
+            errors.Add("Staj tarihleri akademik takvimdeki guz veya bahar ders donemiyle cakisiyor.");
+
+        return errors;
+    }
+
     // Ogretim yili 2026-2027 biciminde ve ardisik iki yildan olusmali.
     public static bool IsAcademicYearValid(string? academicYear)
     {
