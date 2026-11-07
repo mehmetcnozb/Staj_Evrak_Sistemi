@@ -93,7 +93,10 @@ public class DatabaseManager
         bool addedContactVerification = EnsureColumn(connection, transaction, "Documents", "ContactFieldsVerified",
             "INTEGER NOT NULL DEFAULT 0 CHECK (ContactFieldsVerified IN (0, 1))");
         EnsureColumn(connection, transaction, "Documents", "ContactFieldsVerifiedAt", "TEXT");
-        if (addedStudentVerification || addedInternshipVerification || addedContactVerification)
+        bool addedApplicationVerification = EnsureColumn(connection, transaction, "Documents", "ApplicationFieldsVerified",
+            "INTEGER NOT NULL DEFAULT 0 CHECK (ApplicationFieldsVerified IN (0, 1))");
+        EnsureColumn(connection, transaction, "Documents", "ApplicationFieldsVerifiedAt", "TEXT");
+        if (addedStudentVerification || addedInternshipVerification || addedContactVerification || addedApplicationVerification)
         {
             // Onceki karsilastirmalar yeni belge alanlarinin kontrolunu kapsamaz.
             using var reset = connection.CreateCommand();
@@ -222,6 +225,8 @@ public class DatabaseManager
             InternshipFieldsVerifiedAt TEXT,
             ContactFieldsVerified INTEGER NOT NULL DEFAULT 0 CHECK (ContactFieldsVerified IN (0, 1)),
             ContactFieldsVerifiedAt TEXT,
+            ApplicationFieldsVerified INTEGER NOT NULL DEFAULT 0 CHECK (ApplicationFieldsVerified IN (0, 1)),
+            ApplicationFieldsVerifiedAt TEXT,
             FOREIGN KEY (InternshipId) REFERENCES Internships(Id) ON DELETE CASCADE,
             FOREIGN KEY (ApprovalReviewedByUserId) REFERENCES Users(Id) ON DELETE SET NULL
         );

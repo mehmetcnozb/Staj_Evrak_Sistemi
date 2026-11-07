@@ -118,7 +118,7 @@ public class DocumentService
                    StudentApprovalPresent, AdvisorApprovalPresent, EmployerFieldsComplete,
                    EmployerStampPresent, EmployerSignaturePresent, ApprovalReviewedByUserId, ApprovalReviewedAt,
                    StudentFieldsVerified, StudentFieldsVerifiedAt, InternshipFieldsVerified, InternshipFieldsVerifiedAt,
-                   ContactFieldsVerified, ContactFieldsVerifiedAt
+                   ContactFieldsVerified, ContactFieldsVerifiedAt, ApplicationFieldsVerified, ApplicationFieldsVerifiedAt
             FROM Documents WHERE InternshipId = $id ORDER BY Id;
             """;
         command.Parameters.AddWithValue("$id", internshipId);
@@ -143,6 +143,9 @@ public class DocumentService
                 InternshipFieldsVerified = reader.GetInt32(14) == 1,
                 ContactFieldsVerified = reader.GetInt32(16) == 1,
                 ContactFieldsVerifiedAt = reader.IsDBNull(17) ? null : DateTime.Parse(reader.GetString(17),
+                    CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal),
+                ApplicationFieldsVerified = reader.GetInt32(18) == 1,
+                ApplicationFieldsVerifiedAt = reader.IsDBNull(19) ? null : DateTime.Parse(reader.GetString(19),
                     CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal),
                 InternshipFieldsVerifiedAt = reader.IsDBNull(15) ? null : DateTime.Parse(reader.GetString(15),
                     CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal)

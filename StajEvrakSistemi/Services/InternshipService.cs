@@ -111,7 +111,8 @@ public class InternshipService
                 UPDATE Documents SET IsApproved = 0, RejectionReason = NULL,
                     StudentFieldsVerified = 0, StudentFieldsVerifiedAt = NULL,
                     InternshipFieldsVerified = 0, InternshipFieldsVerifiedAt = NULL,
-                    ContactFieldsVerified = 0, ContactFieldsVerifiedAt = NULL WHERE InternshipId = $id;
+                    ContactFieldsVerified = 0, ContactFieldsVerifiedAt = NULL,
+                    ApplicationFieldsVerified = 0, ApplicationFieldsVerifiedAt = NULL WHERE InternshipId = $id;
                 """;
             resetApproval.Parameters.AddWithValue("$id", application.Id);
             resetApproval.ExecuteNonQuery();

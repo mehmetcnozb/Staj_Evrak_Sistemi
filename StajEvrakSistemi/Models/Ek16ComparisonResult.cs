@@ -19,7 +19,10 @@ public enum Ek16Field
     Address,
     Phone,
     Email,
-    Fax
+    Fax,
+    Semester,
+    CompanyName,
+    EngineerCount
 }
 
 /// <summary>

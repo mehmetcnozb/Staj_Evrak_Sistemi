@@ -16,7 +16,8 @@ public class Ek16MatcherService
 
     private const string SelectApplications = """
         SELECT i.Id, i.StudentId, u.StudentNumber, u.IdentityNumber, u.FullName, i.Department, i.AcademicYear, u.IsForeign,
-               i.StartDate, i.EndDate, i.WorkDays, i.Address, i.Phone, i.Email, i.Fax
+               i.StartDate, i.EndDate, i.WorkDays, i.Address, i.Phone, i.Email, i.Fax,
+               i.Semester, i.CompanyName, i.EngineerCount
         FROM Internships i
         JOIN Users u ON u.Id = i.StudentId
         """;
@@ -87,6 +88,7 @@ public class Ek16MatcherService
         var app = LoadAuthorizedApplication(connection, transaction, user, applicationId);
         var discrepancies = GetScannedDiscrepancies(app, scanned);
         discrepancies.AddRange(ContactDocumentValidator.Compare(GetApplicationDetails(app), scanned));
+        discrepancies.AddRange(ApplicationDocumentValidator.Compare(GetApplicationDetails(app), scanned));
         var internship = GetInternshipComparison(app, scanned);
         discrepancies.AddRange(internship.Discrepancies);
 
@@ -96,7 +98,7 @@ public class Ek16MatcherService
 
     /// <summary>
     /// Son belgenin ogrenci bilgilerini basvuru sahibi ve veri setiyle birlikte dogrular.
-    /// Staj tarihleri, gun ve iletisim bilgilerini de basvuruyla karsilastirir.
+    /// Staj, iletisim, yariyil ve isyeri alanlarini da basvuruyla karsilastirir.
     /// Okunmus alanlarin belirtilen belgeden alinmasi, belge okuyucunun sorumlulugundadir.
     /// </summary>
     /// <exception cref="KeyNotFoundException">Basvuru veya belge bulunamadi.</exception>
@@ -116,7 +118,8 @@ public class Ek16MatcherService
         var internship = GetInternshipComparison(app, scanned);
         var discrepancies = reference.Discrepancies.Concat(GetScannedDiscrepancies(app, scanned))
             .Concat(internship.Discrepancies)
-            .Concat(ContactDocumentValidator.Compare(GetApplicationDetails(app), scanned)).Distinct().ToArray();
+            .Concat(ContactDocumentValidator.Compare(GetApplicationDetails(app), scanned))
+            .Concat(ApplicationDocumentValidator.Compare(GetApplicationDetails(app), scanned)).Distinct().ToArray();
         var result = new Ek16ComparisonResult(app.Id, app.StudentId, app.StudentNumber, app.FullName,
             reference.MatchedRecord, discrepancies, reference.ComparedAt, documentId,
             internship.CalculatedWorkDays, internship.DocumentCalculatedWorkDays);
@@ -132,7 +135,8 @@ public class Ek16MatcherService
     private static InternshipApplication GetApplicationDetails(ApplicationInfo app) => new()
     {
         StartDate = app.StartDate, EndDate = app.EndDate, WorkDays = app.WorkDays.ToList(),
-        Address = app.Address, Phone = app.Phone, Email = app.Email, Fax = app.Fax
+        Address = app.Address, Phone = app.Phone, Email = app.Email, Fax = app.Fax,
+        Semester = app.Semester, CompanyName = app.CompanyName ?? string.Empty, EngineerCount = app.EngineerCount
     };
 
     private static void EnsureActor(SqliteConnection connection, SqliteTransaction transaction, User user)
@@ -194,6 +198,7 @@ public class Ek16MatcherService
     {
         var errors = new List<Ek16Discrepancy>();
         errors.AddRange(ContactDocumentValidator.GetApplicationErrors(GetApplicationDetails(app)));
+        errors.AddRange(ApplicationDocumentValidator.GetApplicationErrors(GetApplicationDetails(app)));
         CheckIdentity(errors, app.IdentityNumber?.Trim(), app.IsForeign, "Kayitli");
         if (!FormatValidator.IsValidStudentNumber(app.StudentNumber))
             errors.Add(new(Ek16Field.StudentNumber, app.StudentNumber, null, "Kayitli ogrenci numarasinin bicimi gecersiz."));
@@ -367,7 +372,8 @@ public class Ek16MatcherService
         document.CommandText = """
             UPDATE Documents SET StudentFieldsVerified = 1, StudentFieldsVerifiedAt = $at,
                 InternshipFieldsVerified = 1, InternshipFieldsVerifiedAt = $at,
-                ContactFieldsVerified = 1, ContactFieldsVerifiedAt = $at
+                ContactFieldsVerified = 1, ContactFieldsVerifiedAt = $at,
+                ApplicationFieldsVerified = 1, ApplicationFieldsVerifiedAt = $at
             WHERE Id = $documentId AND InternshipId = $applicationId;
             """;
         document.Parameters.AddWithValue("$at", result.ComparedAt.ToString("o", CultureInfo.InvariantCulture));
@@ -384,7 +390,8 @@ public class Ek16MatcherService
             UPDATE Internships SET Ek16Verified = 0, Ek16VerifiedAt = NULL WHERE Id = $id;
             UPDATE Documents SET StudentFieldsVerified = 0, StudentFieldsVerifiedAt = NULL,
                 InternshipFieldsVerified = 0, InternshipFieldsVerifiedAt = NULL,
-                ContactFieldsVerified = 0, ContactFieldsVerifiedAt = NULL, IsApproved = 0
+                ContactFieldsVerified = 0, ContactFieldsVerifiedAt = NULL,
+                ApplicationFieldsVerified = 0, ApplicationFieldsVerifiedAt = NULL, IsApproved = 0
             WHERE InternshipId = $id;
             """;
         command.Parameters.AddWithValue("$id", applicationId);
@@ -421,7 +428,7 @@ public class Ek16MatcherService
                 reader.GetString(4),
                 reader.IsDBNull(5) ? null : reader.GetString(5),
                 reader.GetString(6), reader.GetInt32(7) == 1, Date(8), Date(9), days,
-                Str(11), Str(12), Str(13), Str(14)));
+                Str(11), Str(12), Str(13), Str(14), Str(15), Str(16), reader.IsDBNull(17) ? 0 : reader.GetInt32(17)));
         }
         return applications;
     }
@@ -458,5 +465,6 @@ public class Ek16MatcherService
         DateTime StartDate,
         DateTime EndDate,
         IReadOnlyList<DayOfWeek> WorkDays,
-        string? Address, string? Phone, string? Email, string? Fax);
+        string? Address, string? Phone, string? Email, string? Fax,
+        string? Semester, string? CompanyName, int EngineerCount);
 }
