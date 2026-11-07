@@ -17,24 +17,18 @@ public class InternshipService
 
     private const string SelectColumns = """
         Id, StudentId, AcademicYear, Semester, StartDate, EndDate, CompanyName, Department, Address, Phone, Email, Fax,
-        WorkDays, EngineerCount, GoogleFormUrl, Status, Ek16Verified, CreatedAt, NetWorkDays, CompanyIban, CompanyTaxNumber,
-        ResponsibleEngineerName, ResponsibleEngineerTitle, EngineerRegistrationNumber, EngineerGraduationDepartment
+        WorkDays, EngineerCount, GoogleFormUrl, Status, Ek16Verified, CreatedAt, NetWorkDays, EngineerGraduationDepartment
         """;
 
     private readonly DatabaseManager _database;
     private readonly StatusWorkflowEngine _engine;
     private readonly Func<DateTime> _utcNow;
-    private readonly int? _minimumWorkDays;
 
-    public InternshipService(DatabaseManager database, StatusWorkflowEngine engine, Func<DateTime>? utcNow = null,
-        int? minimumWorkDays = null)
+    public InternshipService(DatabaseManager database, StatusWorkflowEngine engine, Func<DateTime>? utcNow = null)
     {
         _database = database ?? throw new ArgumentNullException(nameof(database));
         _engine = engine ?? throw new ArgumentNullException(nameof(engine));
         _utcNow = utcNow ?? (() => DateTime.UtcNow);
-        if (minimumWorkDays.HasValue && minimumWorkDays.Value <= 0)
-            throw new ArgumentOutOfRangeException(nameof(minimumWorkDays), "Minimum staj gunu sifirdan buyuk olmali.");
-        _minimumWorkDays = minimumWorkDays;
     }
 
     /// <summary>
@@ -52,7 +46,7 @@ public class InternshipService
 
         DateTime createdAt = _utcNow();
         ValidateBasics(application);
-        ValidateDates(application, createdAt);
+        ValidateDates(application);
         decimal netWorkDays = CalculateNetWorkDays(application);
 
         using var connection = _database.GetConnection();
@@ -62,12 +56,10 @@ public class InternshipService
         command.CommandText = """
             INSERT INTO Internships
                 (StudentId, AcademicYear, Semester, StartDate, EndDate, CompanyName, Department, Address, Phone, Email, Fax,
-                 WorkDays, EngineerCount, HasEngineer, GoogleFormUrl, Status, CreatedAt, NetWorkDays, CompanyIban, CompanyTaxNumber,
-                 ResponsibleEngineerName, ResponsibleEngineerTitle, EngineerRegistrationNumber, EngineerGraduationDepartment)
+                 WorkDays, EngineerCount, HasEngineer, GoogleFormUrl, Status, CreatedAt, NetWorkDays, EngineerGraduationDepartment)
             VALUES
                 ($studentId, $year, $semester, $start, $end, $company, $department, $address, $phone, $email, $fax,
-                 $workDays, $engineers, $hasEngineer, $googleForm, 'Uploaded', $createdAt, $netWorkDays, $companyIban, $companyTaxNumber,
-                 $engineerName, $engineerTitle, $engineerRegistration, $engineerDepartment);
+                 $workDays, $engineers, $hasEngineer, $googleForm, 'Uploaded', $createdAt, $netWorkDays, $engineerDepartment);
             SELECT last_insert_rowid();
             """;
         BindApplication(command, application, netWorkDays);
@@ -94,10 +86,9 @@ public class InternshipService
         _engine.ValidateUpdateOperation(application.Id, user);
         ValidateBasics(application);
 
-        using var connection = _database.GetConnection();
-        DateTime createdAt = LoadCreatedAt(connection, application.Id);
-        ValidateDates(application, createdAt);
+        ValidateDates(application);
         decimal netWorkDays = CalculateNetWorkDays(application);
+        using var connection = _database.GetConnection();
         using var transaction = connection.BeginTransaction();
         using var command = connection.CreateCommand();
         command.Transaction = transaction;
@@ -106,9 +97,7 @@ public class InternshipService
                 AcademicYear = $year, Semester = $semester, StartDate = $start, EndDate = $end, CompanyName = $company,
                 Department = $department, Address = $address, Phone = $phone, Email = $email, Fax = $fax,
                 WorkDays = $workDays, EngineerCount = $engineers, HasEngineer = $hasEngineer, GoogleFormUrl = $googleForm,
-                NetWorkDays = $netWorkDays, CompanyIban = $companyIban, CompanyTaxNumber = $companyTaxNumber,
-                ResponsibleEngineerName = $engineerName, ResponsibleEngineerTitle = $engineerTitle,
-                EngineerRegistrationNumber = $engineerRegistration, EngineerGraduationDepartment = $engineerDepartment,
+                NetWorkDays = $netWorkDays, EngineerGraduationDepartment = $engineerDepartment,
                 Ek16Verified = 0, Ek16VerifiedAt = NULL
             WHERE Id = $id;
             """;
@@ -125,7 +114,6 @@ public class InternshipService
         transaction.Commit();
         application.NetWorkDays = netWorkDays;
         application.Ek16Verified = false;
-        application.CreatedAt = createdAt;
         application.Semester = InternshipDateValidator.NormalizeSemester(application.Semester);
     }
 
@@ -216,41 +204,20 @@ public class InternshipService
             throw new ArgumentException(string.Join(" ", formatErrors), nameof(application));
     }
 
-    private static void ValidateDates(InternshipApplication application, DateTime createdAt)
+    private static void ValidateDates(InternshipApplication application)
     {
-        // Otuz gun hesabi UTC saatiyle degil, Turkiye'deki takvim tarihiyle yapilir.
-        DateTime submissionDate = InternshipDateValidator.ToTurkeyDate(createdAt);
-        var errors = InternshipDateValidator.GetApplicationErrors(
-            application, submissionDate, AcademicCalendars.Kocaeli2026_2027);
+        var calendar = InternshipDateValidator.IsAcademicYearValid(application.AcademicYear)
+            ? AcademicCalendars.GetForAcademicYear(application.AcademicYear) : AcademicCalendars.Current;
+        var errors = InternshipDateValidator.GetApplicationErrors(application, calendar);
         if (errors.Count > 0)
             throw new ArgumentException(string.Join(" ", errors), nameof(application));
     }
 
-    private static DateTime LoadCreatedAt(SqliteConnection connection, int applicationId)
-    {
-        using var command = connection.CreateCommand();
-        command.CommandText = "SELECT CreatedAt FROM Internships WHERE Id = $id;";
-        command.Parameters.AddWithValue("$id", applicationId);
-        if (command.ExecuteScalar() is not string createdAt || string.IsNullOrWhiteSpace(createdAt))
-            throw new InvalidOperationException("Kayitli ilk basvuru tarihi bulunamadi. Tarih kontrolu icin bu bilgi gerekli.");
-
-        // Formdan gelen tarih yerine veritabaninda saklanan ilk kayit zamani kullanilir.
-        return DateTime.Parse(createdAt, CultureInfo.InvariantCulture,
-            DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal);
-    }
-
-    private decimal CalculateNetWorkDays(InternshipApplication application)
+    private static decimal CalculateNetWorkDays(InternshipApplication application)
     {
         var holidays = TurkishPublicHolidays.GetForRange(application.StartDate, application.EndDate);
-        decimal netWorkDays = InternshipDayCalculator.CalculateWorkDays(
+        return InternshipDayCalculator.CalculateWorkDays(
             application.StartDate, application.EndDate, application.WorkDays, holidays);
-
-        if (_minimumWorkDays.HasValue
-            && !InternshipDayCalculator.MeetsMinimumDays(netWorkDays, _minimumWorkDays.Value))
-            throw new ArgumentException(
-                $"Net staj gunu {_minimumWorkDays.Value} gunden az olamaz. Hesaplanan gun: {netWorkDays}.", nameof(application));
-
-        return netWorkDays;
     }
 
     private static void BindApplication(SqliteCommand command, InternshipApplication a, decimal netWorkDays)
@@ -272,11 +239,6 @@ public class InternshipService
         command.Parameters.AddWithValue("$engineers", a.EngineerCount);
         command.Parameters.AddWithValue("$hasEngineer", a.EngineerCount >= 1 ? 1 : 0);
         command.Parameters.AddWithValue("$googleForm", Db(a.GoogleFormUrl));
-        command.Parameters.AddWithValue("$companyIban", Db(FormatValidator.NormalizeIban(a.CompanyIban)));
-        command.Parameters.AddWithValue("$companyTaxNumber", Db(a.CompanyTaxNumber));
-        command.Parameters.AddWithValue("$engineerName", Db(a.ResponsibleEngineerName));
-        command.Parameters.AddWithValue("$engineerTitle", Db(a.ResponsibleEngineerTitle));
-        command.Parameters.AddWithValue("$engineerRegistration", Db(a.EngineerRegistrationNumber));
         command.Parameters.AddWithValue("$engineerDepartment", Db(a.EngineerGraduationDepartment));
         // Sonuc tam veya yarim gun oldugu icin SQLite REAL alaninda kayipsiz tutulur.
         command.Parameters.AddWithValue("$netWorkDays", (double)netWorkDays);
@@ -322,12 +284,7 @@ public class InternshipService
                         DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal)
                     : null,
                 NetWorkDays = reader.GetDecimal(18),
-                CompanyIban = Str(19),
-                CompanyTaxNumber = Str(20),
-                ResponsibleEngineerName = Str(21),
-                ResponsibleEngineerTitle = Str(22),
-                EngineerRegistrationNumber = Str(23),
-                EngineerGraduationDepartment = Str(24)
+                EngineerGraduationDepartment = Str(19)
             });
         }
         return result;

@@ -1,27 +1,10 @@
-using System.Globalization;
-using System.Text;
 using StajEvrakSistemi.Models;
 
 namespace StajEvrakSistemi.Core;
 
 public static class EngineerApprovalValidator
 {
-    public static bool RequiresGraduationDepartment(int engineerCount) => engineerCount is >= 1 and < 5;
-
-    public static bool IsValidEngineerTitle(string? title)
-    {
-        if (string.IsNullOrWhiteSpace(title))
-            return false;
-
-        // Turkce harfleri sadelestirerek unvandaki muhendis ifadesini kontrol eder.
-        string normalized = new string(title.Trim().Normalize(NormalizationForm.FormD)
-            .Where(c => CharUnicodeInfo.GetUnicodeCategory(c) != UnicodeCategory.NonSpacingMark).ToArray())
-            .Replace('\u0131', 'i').ToLowerInvariant();
-
-        return normalized is "muhendis" or "muhendisi"
-            || normalized.EndsWith(" muhendis", StringComparison.Ordinal)
-            || normalized.EndsWith(" muhendisi", StringComparison.Ordinal);
-    }
+    public static bool ShouldAskGraduationDepartment(int engineerCount) => engineerCount is >= 1 and < 5;
 
     public static IReadOnlyList<string> GetEngineerErrors(InternshipApplication application)
     {
@@ -34,17 +17,17 @@ public static class EngineerApprovalValidator
             return errors;
         }
 
-        if (string.IsNullOrWhiteSpace(application.ResponsibleEngineerName))
-            errors.Add("Sorumlu muhendisin adi soyadi girilmeli.");
-        if (!IsValidEngineerTitle(application.ResponsibleEngineerTitle))
-            errors.Add("Sorumlu muhendisin unvani muhendis veya muhendisi ifadesiyle bitmeli.");
-        if (string.IsNullOrWhiteSpace(application.EngineerRegistrationNumber))
-            errors.Add("Sorumlu muhendisin oda sicil numarasi girilmeli.");
-        if (RequiresGraduationDepartment(application.EngineerCount)
-            && string.IsNullOrWhiteSpace(application.EngineerGraduationDepartment))
-            errors.Add("Muhendis sayisi 5'in altindaysa sorumlu muhendisin mezun oldugu bolum girilmeli.");
-
         return errors;
+    }
+
+    // Bu uyari onayi engellemez. Arayuz bolum bilgisini sorarken kullanabilir.
+    public static IReadOnlyList<string> GetEngineerWarnings(InternshipApplication application)
+    {
+        ArgumentNullException.ThrowIfNull(application);
+        if (ShouldAskGraduationDepartment(application.EngineerCount)
+            && string.IsNullOrWhiteSpace(application.EngineerGraduationDepartment))
+            return new[] { "Muhendis sayisi 5'in altinda. Muhendisin mezun oldugu bolumu belirtiniz." };
+        return Array.Empty<string>();
     }
 
     public static IReadOnlyList<string> GetDocumentApprovalErrors(DocumentApprovalFields fields)

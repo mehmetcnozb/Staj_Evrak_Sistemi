@@ -257,8 +257,10 @@ public class DocumentService
             AcademicYear = reader.GetString(0), StartDate = startDate, EndDate = endDate,
             Semester = reader.IsDBNull(3) ? null : reader.GetString(3)
         };
-        var errors = InternshipDateValidator.GetApplicationErrors(application,
-            InternshipDateValidator.ToTurkeyDate(uploadedAt), AcademicCalendars.Kocaeli2026_2027);
+        var calendar = InternshipDateValidator.IsAcademicYearValid(application.AcademicYear)
+            ? AcademicCalendars.GetForAcademicYear(application.AcademicYear) : AcademicCalendars.Current;
+        var errors = InternshipDateValidator.GetApplicationErrors(application, calendar).ToList();
+        errors.AddRange(InternshipDateValidator.GetDocumentDeliveryErrors(uploadedAt, startDate));
         if (errors.Count > 0)
             throw new DocumentValidationException(errors);
     }

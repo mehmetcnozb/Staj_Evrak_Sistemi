@@ -24,7 +24,7 @@ public static class InternshipDateValidator
 
     // Kayit akisinin kullanacagi ortak tarih kontrolleri.
     public static IReadOnlyList<string> GetApplicationErrors(
-        InternshipApplication application, DateTime submissionDate, AcademicCalendar calendar)
+        InternshipApplication application, AcademicCalendar calendar)
     {
         ArgumentNullException.ThrowIfNull(application);
         ArgumentNullException.ThrowIfNull(calendar);
@@ -49,17 +49,10 @@ public static class InternshipDateValidator
             return errors;
         }
 
-        errors.AddRange(GetLeadTimeErrors(submissionDate, application.StartDate));
-
         if (MatchesAcademicCalendar(application.AcademicYear, calendar)
             && !IsWithinAcademicYear(application.StartDate, application.EndDate, calendar))
             errors.Add($"Staj tarihleri {calendar.AcademicYearStartDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)}"
                 + $" ile {calendar.AcademicYearEndDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)} arasinda olmali.");
-
-        // Baska bir yilin dersleri secilen takvimle kontrol edilemez.
-        if (MatchesAcademicCalendar(application.AcademicYear, calendar)
-            && HasClassPeriodConflict(application.StartDate, application.EndDate, calendar))
-            errors.Add("Staj tarihleri akademik takvimdeki guz veya bahar ders donemiyle cakisiyor.");
 
         return errors;
     }
@@ -123,7 +116,7 @@ public static class InternshipDateValidator
             && string.Equals(academicYear!.Trim(), calendar.AcademicYear, StringComparison.Ordinal);
     }
 
-    // Basvuru ile staj baslangici arasinda en az 30 takvim gunu olmali.
+    // Belgenin teslimi ile staj baslangici arasinda en az 30 takvim gunu olmali.
     public static bool IsSubmissionOnTime(DateTime submissionDate, DateTime internshipStartDate)
     {
         int daysUntilStart = (internshipStartDate.Date - submissionDate.Date).Days;
@@ -134,26 +127,5 @@ public static class InternshipDateValidator
     public static DateTime GetLatestSubmissionDate(DateTime internshipStartDate)
     {
         return internshipStartDate.Date.AddDays(-MinimumLeadDays);
-    }
-
-    // Staj araliginin guz veya bahar ders donemiyle kesisip kesismedigini kontrol eder.
-    public static bool HasClassPeriodConflict(
-        DateTime internshipStartDate,
-        DateTime internshipEndDate,
-        AcademicCalendar calendar)
-    {
-        ArgumentNullException.ThrowIfNull(calendar);
-
-        if (internshipEndDate.Date < internshipStartDate.Date)
-            throw new ArgumentException("Staj bitisi baslangictan once olamaz.", nameof(internshipEndDate));
-
-        // Sinir gunleri de cakisma kontrolune dahildir.
-        bool overlapsFall = internshipStartDate.Date <= calendar.FallEndDate
-            && internshipEndDate.Date >= calendar.FallStartDate;
-
-        bool overlapsSpring = internshipStartDate.Date <= calendar.SpringEndDate
-            && internshipEndDate.Date >= calendar.SpringStartDate;
-
-        return overlapsFall || overlapsSpring;
     }
 }

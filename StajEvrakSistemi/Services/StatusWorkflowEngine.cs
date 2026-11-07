@@ -311,17 +311,12 @@ public class StatusWorkflowEngine
             StartDate = application.StartDate,
             EndDate = application.EndDate,
             EngineerCount = application.EngineerCount,
-            ResponsibleEngineerName = application.ResponsibleEngineerName,
-            ResponsibleEngineerTitle = application.ResponsibleEngineerTitle,
-            EngineerRegistrationNumber = application.EngineerRegistrationNumber,
             EngineerGraduationDepartment = application.EngineerGraduationDepartment
         };
         var errors = EngineerApprovalValidator.GetEngineerErrors(details).ToList();
-        if (!application.CreatedAt.HasValue)
-            errors.Add("Kayitli ilk basvuru tarihi bulunamadi veya okunamadi.");
-        else
-            errors.AddRange(InternshipDateValidator.GetApplicationErrors(details,
-                InternshipDateValidator.ToTurkeyDate(application.CreatedAt.Value), AcademicCalendars.Kocaeli2026_2027));
+        var calendar = InternshipDateValidator.IsAcademicYearValid(details.AcademicYear)
+            ? AcademicCalendars.GetForAcademicYear(details.AcademicYear) : AcademicCalendars.Current;
+        errors.AddRange(InternshipDateValidator.GetApplicationErrors(details, calendar));
 
         using var command = connection.CreateCommand();
         command.Transaction = transaction;
@@ -362,8 +357,8 @@ public class StatusWorkflowEngine
         using var command = connection.CreateCommand();
         command.Transaction = transaction;
         command.CommandText = """
-            SELECT Status, StudentId, Ek16Verified, EngineerCount, ResponsibleEngineerName, ResponsibleEngineerTitle,
-                   EngineerRegistrationNumber, EngineerGraduationDepartment, AcademicYear, StartDate, EndDate, CreatedAt, Semester
+            SELECT Status, StudentId, Ek16Verified, EngineerCount, EngineerGraduationDepartment,
+                   AcademicYear, StartDate, EndDate, Semester
             FROM Internships WHERE Id = $id;
             """;
         command.Parameters.AddWithValue("$id", applicationId);
@@ -378,14 +373,11 @@ public class StatusWorkflowEngine
         string? Str(int index) => reader.IsDBNull(index) ? null : reader.GetString(index);
         DateTime Date(int index) => DateTime.TryParseExact(Str(index), "yyyy-MM-dd", CultureInfo.InvariantCulture,
             DateTimeStyles.None, out var value) ? value : default;
-        DateTime? createdAt = DateTime.TryParse(Str(11), CultureInfo.InvariantCulture,
-            DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var timestamp) ? timestamp : null;
         return new ApplicationInfo(status, reader.GetInt32(1), reader.GetInt32(2) == 1, reader.GetInt32(3),
-            Str(4), Str(5), Str(6), Str(7), Str(8) ?? string.Empty, Date(9), Date(10), createdAt, Str(12));
+            Str(4), Str(5) ?? string.Empty, Date(6), Date(7), Str(8));
     }
 
     private sealed record ApplicationInfo(ApplicationStatus Status, int StudentId, bool Ek16Verified, int EngineerCount,
-        string? ResponsibleEngineerName, string? ResponsibleEngineerTitle, string? EngineerRegistrationNumber,
-        string? EngineerGraduationDepartment, string AcademicYear, DateTime StartDate, DateTime EndDate, DateTime? CreatedAt,
+        string? EngineerGraduationDepartment, string AcademicYear, DateTime StartDate, DateTime EndDate,
         string? Semester);
 }

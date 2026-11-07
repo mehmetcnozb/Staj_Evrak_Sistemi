@@ -22,8 +22,6 @@ public static class InternshipDayCalculator
         if (selectedDays.Any(day => !Enum.IsDefined(day)))
             throw new ArgumentException("Gecersiz bir calisma gunu secildi.", nameof(workDays));
 
-        // Pazar sayilmaz. Cumartesi yalnizca secilmisse sayilir.
-        selectedDays.Remove(DayOfWeek.Sunday);
         if (selectedDays.Count == 0)
             throw new ArgumentException("En az bir calisma gunu secilmeli.", nameof(workDays));
 
@@ -52,26 +50,14 @@ public static class InternshipDayCalculator
         return totalDays;
     }
 
-    // Hesaplanan net gunun istenen minimuma ulasip ulasmadigini kontrol eder.
-    public static bool MeetsMinimumDays(decimal netWorkDays, int minimumDays)
-    {
-        if (netWorkDays < 0)
-            throw new ArgumentOutOfRangeException(nameof(netWorkDays), "Net staj gunu negatif olamaz.");
-
-        if (minimumDays <= 0)
-            throw new ArgumentOutOfRangeException(nameof(minimumDays), "Minimum staj gunu sifirdan buyuk olmali.");
-
-        return netWorkDays >= minimumDays;
-    }
-
     // Hesaplanan gun sayisini Ek-16 belgesinde belirtilen gun sayisiyla karsilastirir.
     public static bool MatchesDeclaredDays(decimal netWorkDays, decimal declaredDays)
     {
         if (netWorkDays < 0)
             throw new ArgumentOutOfRangeException(nameof(netWorkDays), "Net staj gunu negatif olamaz.");
 
-        if (declaredDays <= 0)
-            throw new ArgumentOutOfRangeException(nameof(declaredDays), "Belgedeki staj gunu sifirdan buyuk olmali.");
+        if (declaredDays < 0)
+            throw new ArgumentOutOfRangeException(nameof(declaredDays), "Belgedeki staj gunu negatif olamaz.");
 
         return netWorkDays == declaredDays;
     }

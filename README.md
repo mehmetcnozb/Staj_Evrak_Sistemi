@@ -6,7 +6,7 @@ ogrencilerin staj basvurusu icin hazirladigi Ek-16 belgesinin kontrolunu ve taki
 Mevcut ozellikler:
 *kullanici kaydi ve girisi - ogrenciler kendi sifrelerini belirleyerek hesap olusturur. sifreler hashlenerek saklanir
 *kimlik kontrolu           - yeni kayitlarda T.C. kimlik numarasinin 10. ve 11. haneleri kontrol ediliyor. yabanci ogrencilerde 11 hane ve 99 ile baslama kurali kullaniliyor. yeni veri seti aktarimlarinda da bu kontroller yapiliyor.
-*format kontrolleri        - ogrenci numarasi, e-posta ve telefon Regex ile kontrol ediliyor. basvuruda adres, telefon ve e-posta zorunlu. faks, kurum IBAN ve vergi numarasi girilmisse kontrol edilip kaydediliyor.
+*format kontrolleri        - ogrenci numarasi, e-posta, telefon ve adres kontrol ediliyor. basvuruda adres, telefon ve e-posta zorunlu. faks bos birakilabilir, girilmisse bicimi kontrol ediliyor.
 *hesap kitleme             - 5 kez hatali girilince hesap kitleniyor. 15dk sonra tekrar aciliyor. basarisiz girisler kaydediliyor.
 *yetkilendirme             - ogrenci ve admin rolleri bulunuyor. ogrenci sadece kendi belge ve basvurusuna erisebiliyor.
 *oturum yonetimi           - birden fazla kullanici icin oturum olusturma, sure kontrolu, cikis islrmleri
@@ -14,10 +14,10 @@ Mevcut ozellikler:
 *basvuru yonetimi          - basvuru olusturma, goruntuleme, guncelleme, silme, islemleri bulunur. admin basvurulari duruma gore listeleyebilir.
 *ek-16 yukleme             - Word, PDF, JPEG ve PNG dosyalari kontrol edilip kaydedilebiliyor.
 *bilgi karsilastirma       - onceden okunup servise verilen ogrenci numarasi, kimlik numarasi, ad soyad, bolum ve ogretim yili karsilastirilabiliyor.
-*muhendis ve onay kontrolu - muhendis sayisi ve sorumlu muhendis bilgileri kontrol ediliyor. adminin son belge icin kaydettigi onay, imza ve kase incelemesi onay akisinda denetleniyor.
+*muhendis ve onay kontrolu - en az 1 muhendis olmasi kontrol ediliyor. sayi 5'in altindaysa mezuniyet bolumu icin uyari bilgisi hazirlaniyor. adminin son belge icin kaydettigi onay, imza ve kase incelemesi denetleniyor.
 *durum takibi              - degisiklik gecmisi tutuyor. tamamlanan basvurularda ogrencinin degistirmesi engelleniyor. admin degistiriyor.
-*tarih kontrolleri         - ogretim yili, yariyil, staj tarih araligi, 30 gun ve ders cakismasi kurallari kayit, guncelleme ve belge yuklemede kontrol ediliyor. onay ve tamamlanmada da tekrar denetleniyor.
-*staj gunu hesabi          - secilen calisma gunleri ve 2026-2027 resmi tatil takvimine gore net staj gunu hesaplaniyor. basvuru olusturulurken ve guncellenirken sonuc kaydediliyor. minimum gun sayisi ayarlanmissa kontrol ediliyor. Ek-16 da belirtilen gun sayisiyla eslesme metodu da bulunuyor.
+*tarih kontrolleri         - ogretim yili, yariyil ve staj tarih araligi kayit ve guncellemede kontrol ediliyor. belge tesliminde en az 30 takvim gunu araniyor. onay ve tamamlanmada belge teslim tarihi tekrar denetleniyor.
+*staj gunu hesabi          - secilen haftalik gunler ve 2026-2027 resmi tatillerine gore net staj gunu hesaplaniyor. kayit ve guncellemede sonuc saklaniyor. Ek-16 da belirtilen gun sayisiyla eslesme metodu da bulunuyor.
 ---------------------------------------------------------------------------------------------
 Projede kullanilan teknolojiler:
 C#                     - uygulamanin yazildigi temel programlama dili
@@ -41,19 +41,18 @@ Staj_Evrak_Sistemi/
             ApplicationStatus.cs (Basvurunun alabilecegi durumlari tanimlar. yuklendi, inceleniyor, hatali, Onaylandi ve Tamamlandi)
             DocumentType.cs (Sistemin isledigi belge turlerini tanimlar. su anda yalnizca Ek-16 bulunuyor.)
             IdentityNumberValidator.cs (T.C. kimlik numarasinin bicimini ve 10./11. kontrol hanelerini denetler. yabanci kimlik numarasinda 11 hane ve 99 onekini kontrol eder.)
-            PassportNumberValidator.cs (Turkiye umuma mahsus pasaport numarasinin U harfi ve sekiz rakamdan olusan bicimini kontrol eder.)
-            FormatValidator.cs (ogrenci numarasi, e-posta, telefon, adres, faks, kurum IBAN ve vergi numarasini kontrol eder. basvurudaki format hatalarini liste olarak dondurur.)
-            EngineerApprovalValidator.cs (muhendis sayisini, sorumlu muhendis bilgilerini ve belgedeki onay alanlarinin kurallara uygunlugunu kontrol eder.)
+            FormatValidator.cs (ogrenci numarasi, e-posta, telefon, adres ve faksi kontrol eder. basvurudaki format hatalarini liste olarak dondurur.)
+            EngineerApprovalValidator.cs (muhendis sayisini ve belge onay alanlarini kontrol eder. muhendis sayisi 5'in altindaysa bolum bilgisi icin uyari dondurur.)
             Permission.cs (Sistemde yapilabilecek yetkili islemleri-fonksiyonlari tanimlar.)
             RolePermissions.cs (Permission.cs deki islemleri, hangi rollerin yapabilecegini kisitlar)
             UserRole.cs (Aktif olan kullanici rollerini tanimlar.)
-            InternshipDateValidator.cs (ogretim yili, Guz/Bahar yariyil bilgisi ve staj tarihlerinin takvimdeki yil araligina uygunlugunu kontrol eder. 30 gun kuralini, son teslim tarihini ve ders donemi cakismasini da kontrol eder. kayit akisinin kullanacagi tarih hatalarini liste olarak dondurur. UTC zamanini Turkiye tarihine cevirir, belge teslim suresini de kontrol eder.)
-            InternshipDayCalculator.cs (secilen calisma gunleri ve verilen tatil listesiyle net staj gununu hesaplar. minimum gun sartini ve Ek-16 da belirtilen gun sayisiyla eslesmeyi kontrol eder.)
+            InternshipDateValidator.cs (ogretim yili, yariyil ve staj tarih araligini kontrol eder. belgenin teslim tarihi icin 30 gun kuralini ve son teslim tarihini hesaplar. UTC zamanini Turkiye tarihine cevirir.)
+            InternshipDayCalculator.cs (secilen haftalik gunler ve tatil listesiyle net staj gununu hesaplar. Ek-16 da belirtilen gun sayisiyla eslesmeyi kontrol eder.)
 
         
         Data/
             DatabaseManager.cs (uygulamanin SQLite veritabanina baglanmasini ve gerekli tablolarin hazirlanmasini saglar.)
-            AcademicCalendars.cs (kocaeli universitesinin 2026-2027 ders tarihlerini ve uygulama icin secilen 1 Eylul - 31 Agustos ogretim yili sinirini saklar.)
+            AcademicCalendars.cs (secilen ogretim yilinin tarih sinirlarini hazirlar. 2026-2027 icin onaylanan yil araligini saklar.)
             TurkishPublicHolidays.cs (2026 ve 2027 resmi tatillerini saklar. verilen tarih araligindaki tam ve yarim gun tatilleri dondurur. ayni gune gelen bayramlari tek sayar.)
         
         Models/
@@ -63,13 +62,13 @@ Staj_Evrak_Sistemi/
             BaseDocument.cs (Belgelerin ortak temel sinifidir. dosya yolu, yuklenme zamani, onay/ret bilgileri ve ortak dosya kontrollerini icerir. docx dosyasinda Word paket girdileri de kontrol edilir.)
             Ek16Document.cs (Ek-16 belgesini temsil eder. uzanti, boyut ve dosya icerigini kontrol eder. onay alanlarinin inceleme sonucunu, inceleyen admini ve zamani da tasir.)
             DocumentApprovalFields.cs (ogrenci ve danisman onay alanlariyla isveren bolumu, kase ve imza inceleme sonuclarini tasir. null henuz incelenmedi demek.)
-            InternshipApplication.cs (ogrencinin staj basvurusunu temsil eder. tarihler, teslim edilen yariyil, isyeri, kurum IBAN ve vergi numarasi, bolum, iletisim bilgileri, calisma gunleri, hesaplanan net staj gunu, muhendis sayisi, sorumlu muhendisin adi, unvani, oda sicil numarasi, mezun oldugu bolum ve basvuru durumunu icerir.)
+            InternshipApplication.cs (ogrencinin staj basvurusunu temsil eder. tarihler, yariyil, isyeri, bolum, iletisim bilgileri, calisma gunleri, net staj gunu, muhendis sayisi, mezuniyet bolumu ve basvuru durumunu tasir.)
             OfficialStudentRecord.cs (Adminin yukledigi referans veri setindeki bir ogrenci kaydini temsil eder. ogrenci, kimlik, uyruk, ogrenim ve iletisim bilgilerini iserir.InternshipApplication.cs ile karsilastirilirken kullanilir. )
             Ek16ComparisonResult.cs (Veri setiyle yapilan karsilastirmanin sonucunu tasir. Eslesen kayit ve alanlar arasindaki uyusmazliklari icerir.)
             ScannedDocumentComparisonResult.cs (ogrencinin girdigi bilgilerle belgeden gelen alanlarin karsilastirma sonucunu tasir. Ayni dosyada, okunmus belge alanlarini tasiyan ScannedDocumentFields modeli de bulunur.)
             StatusTransitionLog.cs (Basvurunun durum degisikligini temsil eder. onceki/yeni durum, islemi yapan kullanici, tarih ve gerekceyi icerir.)
             FailedLoginLog.cs (Basarisiz giris denemesini temsil eder. Kullanici bilgisi, kullanilan giris bilgisi, basarisizlik nedeni ve zamani icerir.)
-            AcademicCalendar.cs (ogretim yilini, yil sinirlarini ve guz/bahar ders tarihlerini tasir. sinirlar verilmezse 1 Eylul - 31 Agustos kullanilir. ders donemlerinin bu sinirlar icinde olmasini da kontrol eder.)
+            AcademicCalendar.cs (ogretim yilini ve tarih sinirlarini tasir. sinirlar verilmezse uygulama tercihi olarak 1 Eylul - 31 Agustos araligi kullanilir.)
         
         Services/
             AuthService.cs	(Kullanici kaydi, giris, hesap kilitleme ve basarisiz giris kayitlarini yonetir. kayitta kimlik kontrolu yapar. yabanci kullanici bilgisini veritabanina kaydeder ve giriste geri yukler.)
@@ -81,7 +80,7 @@ Staj_Evrak_Sistemi/
             DocumentService.cs	(Ek-16 yukleme, listeleme ve silme islemlerini yapar. her yuklemede staj tarihlerini ve 30 gun suresini kontrol eder, teslim zamanini sistem saatinden kaydeder. adminin son belge incelemesini de saklar. belge yuklenince veya silinince eski karsilastirma sonucu sifirlanir.)
             DocumentValidationException.cs	(Dosya kabul edilmediginde, ornegin formati veya boyutu uygun degilse, hata nedenlerini tasir.)
             Ek16MatcherService.cs	(ogrenci bilgilerini, belgeden gelen alanlari ve adminin veri setini karsilastirip uyusmazliklari belirler.)
-            InternshipService.cs	(Staj basvurusu olusturma, goruntuleme, guncelleme, silme ve listeleme islemlerini yapar. format veya tarih hataliysa kaydi engeller. tarih kontrolunde ilk basvuru zamanini Turkiye tarihine cevirir. guncellemede veritabanindaki ilk kayit zamani esas alinir. yariyil Guz veya Bahar olarak kaydedilir. kurum IBAN, vergi numarasi ve sorumlu muhendis bilgilerini kaydeder. guncellemede eski karsilastirma sonucu ve belge onayi sifirlanir. net staj gununu hesaplar ve minimum gun sayisi verilmisse kontrol eder.)
+            InternshipService.cs	(Basvuru olusturma, guncelleme, silme ve listeleme islemlerini yapar. format, ogretim yili ve tarih araligini kontrol eder. net staj gununu hesaplar ve kaydeder. guncellemede eski karsilastirma sonucu ve belge onayi sifirlanir.)
             LoginResult.cs	(Giris isleminin sonucunu tasir: basarili giris, yanlis bilgiler veya kilitli hesap.)
             PasswordHasher.cs	(sifreleri rastgele salt kullanarak hash ler; giriste verilen sifreyi kayitli hash ile dogrular.)
             SessionManager.cs	(Kullanici oturumlarini olusturur, token ve sure kontrolu yapar, cikista oturumu kapatir.)
@@ -96,25 +95,26 @@ Staj_Evrak_Sistemi/
 ---------------------------------------------------------------------------------------------
 Gelistirme durumu
 
-Temel veritabani, kullanici islemleri, yetkilendirme, basvuru yonetimi, veri seti aktarimi ve belge yukleme servisleri gelistirilmistir. Ogretim yili bicimi, takvimle yil eslesmesi, 30 gun kurali ve ders donemi cakisma kontrolleri de eklendi. tarih kontrolleri basvuru olusturma ve guncelleme akisina baglandi. desteklenen takvimle yil eslesmeli, en az 30 gun bulunmali ve staj ders donemiyle cakismamali. belge yukleme ve yeniden yukleme tarihleri de kontrol ediliyor. onay ve tamamlanmada ilk basvuru ve son belgenin kayitli teslim zamanlariyla tarih kurallari yeniden denetleniyor. yariyil bilgisi zorunlu ve Guz/Bahar olarak kaydediliyor. stajin baslangic ve bitisi secilen ogretim yili araliginda olmali. Net staj gunu hesabi, minimum gun ve belgedeki gun sayisiyla eslesme kontrolleri de eklendi. 2026 ve 2027 resmi tatil takvimi hazir. basvuru olusturulurken ve guncellenirken net gun yeniden hesaplaniyor ve kaydediliyor. minimum gun sayisi ayarlanmissa kayit sirasinda kontrol ediliyor. Yeni kullanici kaydi ve veri seti aktariminda T.C. kontrol haneleri ve yabanci kimlik kurallari denetleniyor. Turkiye umuma mahsus pasaport icin ayri bicim kontrolu eklendi. Format kontrolleri kullanici kaydina, veri seti aktarimina ve basvuru kaydina baglandi. kurum IBAN ve vergi numarasi alanlari da eklendi. Muhendis ve belge onay kontrolleri onay akisina baglandi. admin incelemesi son belgeye kaydediliyor, inceleyen kisi ve zaman tutuluyor. Web arayuzuyle entegrasyon henuz yapilmamistir.
+Temel veritabani, kullanici islemleri, yetkilendirme, basvuru yonetimi, veri seti aktarimi ve belge yukleme servisleri gelistirildi. Ogretim yili, yariyil ve staj tarih araligi kayit ve guncellemede denetleniyor. belge teslimi icin en az 30 takvim gunu araniyor. onay ve tamamlanmada son belgenin teslim tarihi kontrol ediliyor.
+Net staj gunu secilen haftalik gunler ve resmi tatillerle hesaplaniyor. kimlik ve format kontrolleri de eklendi. muhendis sayisi 5'in altindaysa bolum bilgisi icin uyari hazirlaniyor. belge onay alanlari admin incelemesiyle kaydediliyor. Web arayuzu ve otomatik belge okuma henuz hazir degil.
 ---------------------------------------------------------------------------------------------
 Yapilacak isler
 
 Resmi tatil takviminin diger yillar icin genisletilmesi.
 
-Minimum staj gunu sartinin netlestirilmesi ve Ek-16 dan okunan gun sayisinin karsilastirmaya baglanmasi.
+Ek-16 dan okunan staj tarihleri ve gun bilgilerinin hesaplanan degerlerle karsilastirmaya baglanmasi.
 
 Kimlik kontrollerinin belgeden okunan alanlara ve zorunlu onay akisina baglanmasi.
 
-Pasaport bilgisinin gerekli form alanlarina baglanmasi. diger pasaport turleri ve ulkeler icin kurallarin netlestirilmesi.
-
 Format hatalarinin ogrenci ve admin ekranlarinda alan bazinda gosterilmesi.
 
-Muhendis ve onay alani kontrollerinin web arayuzune ve belgeden okunan alanlara baglanmasi.
+Muhendis sayisi 5'in altindayken bolum bilgisini soran uyari kutusunun ve onay kontrollerinin ekranlara baglanmasi.
 
 Ogrenci ve admin web arayuzlerinin hazirlanmasi.
 
-PDF/Word belgelerinden otomatik bilgi okuma ve OCR entegrasyonu.
+PDF/Word belgelerinden otomatik alan okuma ve manuel bilgilerle karsilastirma.
+
+Final asamasi icin OCR/HTR ve bos alan tespiti entegrasyonu.
 
 Google Form'a otomatik bilgi aktarimi ve Ek-17 olusturulmasi.
 
@@ -126,46 +126,30 @@ Belgeden okunan alanlarin ogrencinin girdigi bilgilerle karsilastirilmasi henuz 
 
 Belgedeki ogrencinin basvurunun sahibiyle eslesmesi her karsilastirma yolunda zorunlu tutulmamaktadir.
 
+Veri setindeki butun sutunlarin varlik kontrolu ve atlanan satirlardan sonraki mukerrer kontrolu tamamlanmalidir.
+
 ---------------------------------------------------------------------------------------------
 Tarih kontrolleri
-Ogretim yili 2026-2027 gibi ardisik iki yildan olusmali. 2026-2028 veya 2026/2027 gibi girisler kabul edilmiyor.
-Basvurudaki ogretim yili ile secilen takvimin yili karsilastiriliyor. hatali ogretim yiliyla takvim olusturulamiyor.
-Basvuru tarihi ile staj baslangici arasinda en az 30 takvim gunu bulunmasi kontrol edilir. Tam 30 gun gecerli kabul edilir.
-Staj baslangicina gore en gec teslim tarihi hesaplanir.
-Staj tarih araliginin guz veya bahar ders donemiyle cakismasi kontrol edilir. Donemlerin baslangic ve bitis gunleri kontrole dahildir.
-Bitis tarihinin baslangic tarihinden once olmasi engellenir.
-kocaeli universitesinin 2026-2027 genel onlisans ve lisans ders tarihleri;
-donem   -       ders baslangici     -       ders bitisi 
-guz     -       21 eylul 2026       -       25 Aralik 2026
-bahar   -       8 Subat 2027        -       28 Mayis 2027
-
-Bu cakisma kontrolu sadece ders donemlerini kapsiyor. sinav donemleri ve resmi tatiller dahil degil.
-Tarih kontrolleri basvuru olusturma ve guncelleme islemlerine baglandi. kurala uymayan basvuru kaydedilmiyor, hatali guncellemede eski kayit korunuyor.
-Bu asamada takvim olarak daha once secilen Kocaeli 2026-2027 kullaniliyor. farkli ogretim yili girilirse takvimin tanimli olmadigi bildiriliyor.
-Basvuru zamani sistem saatinden aliniyor, veritabanina UTC olarak kaydediliyor. 30 gun hesabi icin Turkiye'deki takvim tarihine cevriliyor.
-Guncellemede ilk basvuru zamani degismiyor. formdaki deger yerine veritabaninda kayitli ilk zaman kullaniliyor. bu bilgi eski kayitta yoksa guncelleme engelleniyor, tarih uydurulmuyor.
-Sure 30 gunden azsa hata mesajinda son teslim tarihi de veriliyor. ayni takvim gunu icindeki saat ve dakika farklari hesaba katilmiyor.
-Yariyil bilgisi zorunlu. Guz veya Bahar girilmeli. buyuk/kucuk harf ve bastaki sondaki bosluklar duzenleniyor, kayitta Guz veya Bahar tutuluyor.
-Yariyil teslim edilen belgenin donem bilgisi. stajin o donemin ders tarihleri icinde olmasi gerekmiyor. ornegin Bahar bilgisiyle temmuz staji yapilabiliyor, ders cakismasi ayrica kontrol ediliyor.
-2026-2027 icin stajin baslangici ve bitisi 1 Eylul 2026 - 31 Agustos 2027 araliginda olmali. iki sinir gunu de dahil. tarihlerden biri bile disari tasarsa islem engelleniyor.
-Bu yil siniri proje icin secilen uygulama kurali. universitenin ders baslangic ve bitis tarihlerinden ayri tutuluyor.
-Yariyil ve yil araligi kontrolleri kayit, guncelleme, belge yukleme, onay ve tamamlanmaya baglandi.
-Eski kayitlarda yariyil bos kalabilir. kayit okunabilir ama belge yukleme veya onaydan once bilgi tamamlanmali. eski kayitlara otomatik yariyil atanmiyor.
-Ilk belge yukleme ve yeniden yuklemede 30 gun suresi, ogretim yili ve ders cakismasi kontrol ediliyor. basvuruyu erken acmak gec belge teslimine izin vermiyor.
-Teslim zamani sistemden bir kez aliniyor. kontrol edilen zaman hem belge nesnesine hem veritabanina ayni sekilde kaydediliyor.
-Gec yukleme reddedilirse yeni belge kaydi olusmuyor. onceki belge, durum gecmisi ve dogrulama sonucu korunuyor.
-Onaylandi ve Tamamlandi durumlarina geciste ilk basvuru tarihi ve son belgenin teslim tarihi yeniden kontrol ediliyor. ders cakismasi ve takvim yili da denetleniyor.
-Onay gunu teslim tarihi olarak alinmiyor. zamaninda yuklenen belge staj basladiktan sonra da onaylanip tamamlanabiliyor.
-Eski kayitlarda basvuru veya belge teslim zamani eksikse ya da okunamiyorsa onay engelleniyor. tarih uydurulmuyor.
+Ogretim yili 2026-2027 gibi ardisik iki yildan olusmali. yariyil bilgisi Guz veya Bahar olarak girilmeli.
+Yariyil teslim edilen belgenin donem bilgisi. buyuk/kucuk harf ve bastaki sondaki bosluklar duzenleniyor.
+Stajin baslangic ve bitisi secilen ogretim yili icinde olmali. bitis baslangictan once olamaz.
+2026-2027 icin 1 Eylul 2026 - 31 Agustos 2027 araligi secildi. diger ardisik ogretim yillari da ayni yil araligi tercihiyle hazirlanabiliyor. resmi tatil verisi henuz 2026 ve 2027 ile sinirli. iki sinir gunu de dahil. bu proje icin onaylanan uygulama tercihi, PDF'nin verdigi kesin bir tarih siniri degil.
+Ogretim yili ve tarih araligi kayit, guncelleme, belge yukleme, onay ve tamamlanmada denetleniyor.
+Belge staj baslangicindan en az 30 takvim gunu once yuklenmeli. tam 30 gun kabul ediliyor. sure yetersizse son teslim tarihi hata mesajinda veriliyor.
+30 gun hesabi dosyanin sistemdeki teslim zamaniyla yapiliyor. form kaydetme ve guncelleme islemlerine ek bir 30 gun sarti uygulanmiyor.
+Teslim zamani UTC olarak kaydediliyor. takvim gunu hesabi icin Turkiye tarihine cevriliyor. ayni gun icindeki saat ve dakika farklari sayilmiyor.
+Her yeni dosya yuklemesinde teslim tarihi yeniden kontrol ediliyor. reddedilen yukleme onceki belgeyi, durum gecmisini ve dogrulamayi degistirmiyor.
+Onay ve tamamlanmada son belgenin kayitli teslim tarihi kullaniliyor. zamaninda yuklenen belge daha sonra da onaylanip tamamlanabiliyor.
+Belgenin teslim zamani eksikse veya okunamiyorsa onay engelleniyor.
+Eski kayitlar okunabiliyor. yariyil eksikse belge yukleme veya onaydan once tamamlanmali.
 Tarih hatalarinin web ekranlarinda gosterilmesi henuz yapilmadi.
 ---------------------------------------------------------------------------------------------
 Staj gunu hesabi
 Baslangic ve bitis gunleri dahil, ogrencinin sectigi haftalik calisma gunleri sayiliyor.
-Pazar gunleri sayilmiyor. cumartesi sadece calisma gunu olarak secilmisse sayiliyor.
+Cumartesi ve pazar da dahil, yalnizca calisma gunu olarak secilen haftalik gunler sayiliyor.
 2026 ve 2027 resmi tatilleri tarih araligina gore otomatik aliniyor. tam gun tatil 1, yarim gun tatil 0.5 olarak tutuluyor.
 Cuma aksam biten tatilin ertesi cumartesisi de tatil sayiliyor. ayni tarihe iki bayram denk gelirse bir kez dusuluyor.
 Tatil zaten calisilmayan bir gune denk gelirse tekrar dusulmuyor.
-Servis olusturulurken minimum gun sayisi verilmisse, bu sinirin altindaki basvuru kaydedilmiyor. sabit bir minimum belirlenmedi.
 Hesaplanan sonuc ile Ek-16 da belirtilen gun sayisi karsilastirilabiliyor. gun sayisini su an metoda vermek gerekiyor, belgeden otomatik okunmuyor.
 Net gun hesabi basvuru olusturma ve guncelleme islemlerine baglandi. tarih veya calisma gunu degisince yeniden hesaplaniyor. yarim gunler de veritabaninda saklaniyor.
 Tatil takvimi su an sadece 2026 ve 2027 icin hazir. baska yil girilirse uyari veriliyor.
@@ -182,10 +166,7 @@ Yabanci ogrenci icin isForeign bilgisi true verilmeli. varsayilan deger false, y
 Yabanci kimlikte proje kuralina gore 11 rakam ve 99 ile baslama kontrolu yapiliyor. T.C. kontrol hanesi hesabi yabanci kimlige uygulanmiyor.
 IsForeign bilgisi veritabaninda saklaniyor ve giris yapildiginda geri yukleniyor.
 Mevcut hesaplar korunuyor. checksum kurali yeni kayitlarda ve yeni veri seti aktarimlarinda uygulanir.
-Pasaport icin Turkiye umuma mahsus numara bicimi kontrol edilebiliyor: U harfi ve ardindan 8 rakam. ornek: U12345678.
-Pasaport kontrolu ayri bir metot. hesap kaydinda T.C. veya yabanci kimlik numarasinin yerine gecmiyor. diger pasaport turleri ve ulkeler bu metodun kapsaminda degil.
 Bu kontroller yalnizca bicim ve matematiksel kontrol yapiyor. numaranin gercek bir kisiye ait oldugu resmi bir servisten sorgulanmiyor.
-Pasaport bicimi icin ornek kaynak: https://smarteritaly.agid.gov.it/wp-content/uploads/2024/04/IQ-Structures_presentazione.pdf
 ---------------------------------------------------------------------------------------------
 Format kontrolleri
 Ogrenci numarasinda mevcut harf ve rakam kurali korunuyor. bosluk ve ozel karakter kabul edilmiyor. sabit bir hane sayisi belirtilmedigi icin uzunluk zorunlulugu konulmadi.
@@ -194,20 +175,15 @@ Hesap kaydinda e-posta zorunlu. telefon girilmisse bicimi kontrol ediliyor.
 Staj basvurusunda adres, telefon ve e-posta zorunlu. faks bos kalabilir, girilmisse telefonla ayni bicimde olmali.
 Adres sirasi mahalle, cadde/sokak, bina no, daire no, ilce/il olarak kontrol ediliyor. bu bir adres bicimi kontrolu, resmi adres sorgusu degil.
 Adres ornegi: Merkez Mah. Cumhuriyet Cad. No:10 Daire:2 Izmit/Kocaeli
-Kurum IBAN ve vergi numarasi bos kalabilir. girilmisse kontrol edilip veritabanina kaydediliyor.
-Turkiye IBAN bilgisi TR ile baslayan 26 karakterlik yapiya uygun olmali. rezerv alani sifir olmali ve MOD-97 kontrolunden gecmeli. bosluklu girilen IBAN kaydedilirken birlestirilip buyuk harfe cevriliyor.
-Vergi numarasinda 10 rakamli VKN bicimi kabul ediliyor. sahis firmasi icin 11 haneli T.C. numarasi verilirse kontrol haneleri de denetleniyor. 10 haneli VKN icin yalnizca bicim kontrolu yapiliyor.
+Bilesenler virgulle ayrilsa da ayni sira korunuyorsa kabul ediliyor.
 Kullanici kaydinda ve yeni veri seti aktariminda ayni Regex kurallari kullaniliyor. veri setindeki istege bagli iletisim alanlari girilmisse denetleniyor.
 Eski basvurular okunabiliyor. guncelleme yapilacaksa yeni zorunlu alanlar da doldurulmali.
 Belgede uzanti, boyut ve baslangic baytlari kontrol ediliyor. docx icin [Content_Types].xml ve word/document.xml girdilerinin dolu olmasi gerekiyor. herhangi bir ZIP dosyasinin uzantisini degistirmek yeterli degil.
-IBAN bicimi ve MOD-97 kontrolu bir banka hesabinin gercekte var oldugunu veya kime ait oldugunu sorgulamiyor.
-IBAN kaynagi: https://www.tcmb.gov.tr/wps/wcm/connect/EN/TCMB%2BEN/Bottom%2BMenu/IBAN/Communique
 ---------------------------------------------------------------------------------------------
 Muhendis ve belge onay kontrolleri
-Isyerinde en az 1 muhendis olmali. sorumlu muhendisin adi soyadi, unvani ve oda sicil numarasi girilmeli.
-Unvanin muhendis veya muhendisi ifadesiyle bitmesi kontrol ediliyor. oda sicil numarasinda bos olmama kontrolu var, resmi bir sicil sorgusu yapilmiyor.
-Muhendis sayisi 1 ile 4 arasindaysa sorumlu muhendisin mezun oldugu bolum de zorunlu. 5 ve uzerindeyse bu ek alan zorunlu degil.
-Eksik muhendis bilgisiyle taslak basvuru kaydedilebiliyor. onay asamasinda eksikler tamamlanmissa ilerleniyor.
+Isyerinde en az 1 muhendis olmali. bu sart onay ve tamamlanmada kontrol ediliyor.
+Muhendis sayisi 1 ile 4 arasindaysa mezun oldugu bolumu soran uyari bilgisi hazirlaniyor. bu uyari onayi engellemiyor.
+EngineerGraduationDepartment alani bolum bilgisini saklayabiliyor. uyari kutusunun ekranda gosterilmesi henuz yapilmadi.
 Ogrenci ve staj danismani onay alanlari bos olmali. isveren bolumu eksiksiz, kase ve imza dolu olmali.
 Bu alanlarin inceleme sonucu DocumentApprovalFields ile tutuluyor. null henuz incelenmedi, false yok, true var demek. isveren bolumunde true eksiksiz dolduruldu demek.
 Admin son yuklenen belge icin DocumentService.RecordApprovalFields metoduyla inceleme sonucunu kaydedebiliyor. inceleyen admin ve inceleme zamani da saklaniyor. eksik veya hatali sonuc kaydedilir ama onaya izin vermez.
@@ -218,3 +194,4 @@ Basvuru guncellenince veri seti dogrulamasi ve belge onayi sifirlaniyor. tamamla
 Eski belgeler otomatik incelenmis sayilmiyor. yeni inceleme alanlari baslangicta null tutuluyor.
 Tamamlanan basvuruyu ogrenci degistiremez veya silemez. admin bu islemleri yapabilir.
 ---------------------------------------------------------------------------------------------
+Eski veritabanlari mevcut kayitlar silinmeden kullanilabiliyor. onceki surumlerden kalan kullanilmayan sutunlar yeni islemlerde okunup yazilmiyor. yeni tablolarda yalnizca kullanilan alanlar olusturuluyor.
