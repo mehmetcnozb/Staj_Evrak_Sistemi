@@ -15,7 +15,11 @@ public enum Ek16Field
     StartDate,
     EndDate,
     WorkDays,
-    NetWorkDays
+    NetWorkDays,
+    Address,
+    Phone,
+    Email,
+    Fax
 }
 
 /// <summary>

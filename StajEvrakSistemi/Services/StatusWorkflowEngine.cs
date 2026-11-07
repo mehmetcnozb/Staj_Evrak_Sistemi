@@ -310,10 +310,13 @@ public class StatusWorkflowEngine
             Semester = application.Semester,
             StartDate = application.StartDate,
             EndDate = application.EndDate,
+            CompanyName = application.CompanyName ?? string.Empty,
+            Address = application.Address, Phone = application.Phone, Email = application.Email, Fax = application.Fax,
             EngineerCount = application.EngineerCount,
             EngineerGraduationDepartment = application.EngineerGraduationDepartment
         };
         var errors = EngineerApprovalValidator.GetEngineerErrors(details).ToList();
+        errors.AddRange(FormatValidator.GetApplicationErrors(details));
         var calendar = InternshipDateValidator.IsAcademicYearValid(details.AcademicYear)
             ? AcademicCalendars.GetForAcademicYear(details.AcademicYear) : AcademicCalendars.Current;
         errors.AddRange(InternshipDateValidator.GetApplicationErrors(details, calendar));
@@ -323,7 +326,8 @@ public class StatusWorkflowEngine
         command.CommandText = """
             SELECT Id, FilePath, StudentApprovalPresent, AdvisorApprovalPresent, EmployerFieldsComplete,
                    EmployerStampPresent, EmployerSignaturePresent, ApprovalReviewedByUserId, ApprovalReviewedAt, UploadedAt,
-                   StudentFieldsVerified, StudentFieldsVerifiedAt, InternshipFieldsVerified, InternshipFieldsVerifiedAt
+                   StudentFieldsVerified, StudentFieldsVerifiedAt, InternshipFieldsVerified, InternshipFieldsVerifiedAt,
+                   ContactFieldsVerified, ContactFieldsVerifiedAt
             FROM Documents WHERE InternshipId = $id AND DocumentType = 'Ek16' ORDER BY Id DESC LIMIT 1;
             """;
         command.Parameters.AddWithValue("$id", applicationId);
@@ -336,6 +340,8 @@ public class StatusWorkflowEngine
             errors.Add("Son belgenin ogrenci bilgileri basvuru ve veri setiyle karsilastirilmali.");
         if (reader.GetInt32(12) != 1 || reader.IsDBNull(13))
             errors.Add("Son belgenin staj tarihleri ve gun bilgileri basvuruyla karsilastirilmali.");
+        if (reader.GetInt32(14) != 1 || reader.IsDBNull(15))
+            errors.Add("Son belgenin iletisim bilgileri basvuruyla karsilastirilmali.");
         bool? Flag(int index) => reader.IsDBNull(index) ? null : reader.GetInt32(index) == 1;
         var fields = new DocumentApprovalFields(Flag(2), Flag(3), Flag(4), Flag(5), Flag(6));
         errors.AddRange(EngineerApprovalValidator.GetDocumentApprovalErrors(fields));
@@ -363,7 +369,7 @@ public class StatusWorkflowEngine
         command.Transaction = transaction;
         command.CommandText = """
             SELECT Status, StudentId, Ek16Verified, EngineerCount, EngineerGraduationDepartment,
-                   AcademicYear, StartDate, EndDate, Semester
+                   AcademicYear, StartDate, EndDate, Semester, CompanyName, Address, Phone, Email, Fax
             FROM Internships WHERE Id = $id;
             """;
         command.Parameters.AddWithValue("$id", applicationId);
@@ -379,10 +385,10 @@ public class StatusWorkflowEngine
         DateTime Date(int index) => DateTime.TryParseExact(Str(index), "yyyy-MM-dd", CultureInfo.InvariantCulture,
             DateTimeStyles.None, out var value) ? value : default;
         return new ApplicationInfo(status, reader.GetInt32(1), reader.GetInt32(2) == 1, reader.GetInt32(3),
-            Str(4), Str(5) ?? string.Empty, Date(6), Date(7), Str(8));
+            Str(4), Str(5) ?? string.Empty, Date(6), Date(7), Str(8), Str(9), Str(10), Str(11), Str(12), Str(13));
     }
 
     private sealed record ApplicationInfo(ApplicationStatus Status, int StudentId, bool Ek16Verified, int EngineerCount,
         string? EngineerGraduationDepartment, string AcademicYear, DateTime StartDate, DateTime EndDate,
-        string? Semester);
+        string? Semester, string? CompanyName, string? Address, string? Phone, string? Email, string? Fax);
 }

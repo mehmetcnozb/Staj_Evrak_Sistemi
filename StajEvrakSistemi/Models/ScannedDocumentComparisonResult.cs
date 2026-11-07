@@ -2,7 +2,7 @@ namespace StajEvrakSistemi.Models;
 
 /// <summary>
 /// Ek-16 belgesinden okunan alanlar. Alan okuma bu modelin disinda yapilir.
-/// Baslangic ve bitis okunamazsa karsilastirma basarisiz olur.
+/// Baslangic, bitis ve zorunlu iletisim alanlari okunamazsa karsilastirma basarisiz olur.
 /// Ayri gun sayisi ve haftalik gun listesi belgede varsa karsilastirmaya eklenir.
 /// </summary>
 public sealed record ScannedDocumentFields(
@@ -14,10 +14,14 @@ public sealed record ScannedDocumentFields(
     DateTime? StartDate = null,
     DateTime? EndDate = null,
     decimal? DeclaredWorkDays = null,
-    IReadOnlyList<DayOfWeek>? WorkDays = null);
+    IReadOnlyList<DayOfWeek>? WorkDays = null,
+    string? Address = null,
+    string? Phone = null,
+    string? Email = null,
+    string? Fax = null);
 
 /// <summary>
-/// Basvurudaki bilgiler ile belgedeki ogrenci ve staj alanlarinin karsilastirma sonucu.
+/// Basvurudaki bilgiler ile belgedeki ogrenci, staj ve iletisim alanlarinin karsilastirma sonucu.
 /// </summary>
 public class ScannedDocumentComparisonResult
 {
@@ -43,12 +47,12 @@ public class ScannedDocumentComparisonResult
     public decimal? DocumentCalculatedWorkDays { get; }
 
     /// <summary>
-    /// Ogrenci ve staj alanlari form ile uyusuyor. Tum belge kurallarini kapsamaz.
+    /// Ogrenci, staj ve iletisim alanlari form ile uyusuyor. Tum belge kurallarini kapsamaz.
     /// </summary>
     public bool IsMatched => Discrepancies.Count == 0;
 
     public string GetSummary() => IsMatched
-        ? $"Basvuru #{ApplicationId}: belgedeki ogrenci ve staj bilgileri form ile uyusuyor."
+        ? $"Basvuru #{ApplicationId}: belgedeki ogrenci, staj ve iletisim bilgileri form ile uyusuyor."
         : $"Basvuru #{ApplicationId}: belge bilgilerinde {Discrepancies.Count} uyusmazlik - " +
           string.Join(" | ", Discrepancies.Select(d => d.Message));
 }
