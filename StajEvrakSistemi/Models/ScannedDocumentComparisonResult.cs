@@ -31,12 +31,12 @@ public class ScannedDocumentComparisonResult
     public DateTime ComparedAt { get; }
 
     /// <summary>
-    /// Belgedeki tüm alanlar başvuruyla uyuşuyor: belge teslime hazır.
+    /// Bu sonuctaki bes ogrenci alani form ile uyusuyor. Tum belge kurallarini kapsamaz.
     /// </summary>
-    public bool IsReadyForSubmission => Discrepancies.Count == 0;
+    public bool IsMatched => Discrepancies.Count == 0;
 
-    public string GetSummary() => IsReadyForSubmission
-        ? $"Başvuru #{ApplicationId}: Ek-16 belgesi başvuru bilgileriyle uyuşuyor, teslime hazır."
-        : $"Başvuru #{ApplicationId}: Teslime hazır değil, {Discrepancies.Count} uyuşmazlık - " +
+    public string GetSummary() => IsMatched
+        ? $"Basvuru #{ApplicationId}: belgedeki ogrenci bilgileri form ile uyusuyor."
+        : $"Basvuru #{ApplicationId}: ogrenci bilgilerinde {Discrepancies.Count} uyusmazlik - " +
           string.Join(" | ", Discrepancies.Select(d => d.Message));
 }

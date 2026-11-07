@@ -10,7 +10,8 @@ public enum Ek16Field
     IdentityNumber,
     FullName,
     Department,
-    AcademicYear
+    AcademicYear,
+    Nationality
 }
 
 /// <summary>
@@ -33,7 +34,8 @@ public class Ek16ComparisonResult
         string fullName,
         OfficialStudentRecord? matchedRecord,
         IReadOnlyList<Ek16Discrepancy> discrepancies,
-        DateTime comparedAt)
+        DateTime comparedAt,
+        int? documentId = null)
     {
         ApplicationId = applicationId;
         StudentId = studentId;
@@ -42,9 +44,12 @@ public class Ek16ComparisonResult
         MatchedRecord = matchedRecord;
         Discrepancies = discrepancies;
         ComparedAt = comparedAt;
+        DocumentId = documentId;
     }
 
     public int ApplicationId { get; }
+
+    public int? DocumentId { get; }
 
     public int StudentId { get; }
 

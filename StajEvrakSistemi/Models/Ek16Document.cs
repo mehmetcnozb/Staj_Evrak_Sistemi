@@ -18,6 +18,10 @@ public class Ek16Document : BaseDocument
 
     public DateTime? ApprovalReviewedAt { get; internal set; }
 
+    public bool StudentFieldsVerified { get; internal set; }
+
+    public DateTime? StudentFieldsVerifiedAt { get; internal set; }
+
     public Ek16Document(int internshipId, string filePath)
         : base(internshipId, filePath)
     {

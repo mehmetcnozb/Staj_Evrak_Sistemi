@@ -116,7 +116,8 @@ public class DocumentService
         command.CommandText = """
             SELECT Id, FilePath, UploadedAt, IsApproved, RejectionReason,
                    StudentApprovalPresent, AdvisorApprovalPresent, EmployerFieldsComplete,
-                   EmployerStampPresent, EmployerSignaturePresent, ApprovalReviewedByUserId, ApprovalReviewedAt
+                   EmployerStampPresent, EmployerSignaturePresent, ApprovalReviewedByUserId, ApprovalReviewedAt,
+                   StudentFieldsVerified, StudentFieldsVerifiedAt
             FROM Documents WHERE InternshipId = $id ORDER BY Id;
             """;
         command.Parameters.AddWithValue("$id", internshipId);
@@ -134,6 +135,9 @@ public class DocumentService
                 ApprovalFields = new DocumentApprovalFields(Flag(5), Flag(6), Flag(7), Flag(8), Flag(9)),
                 ApprovalReviewedByUserId = reader.IsDBNull(10) ? null : reader.GetInt32(10),
                 ApprovalReviewedAt = reader.IsDBNull(11) ? null : DateTime.Parse(reader.GetString(11),
+                    CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal),
+                StudentFieldsVerified = reader.GetInt32(12) == 1,
+                StudentFieldsVerifiedAt = reader.IsDBNull(13) ? null : DateTime.Parse(reader.GetString(13),
                     CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal)
             };
             document.RestoreState(reader.GetInt32(3) == 1, reader.IsDBNull(4) ? null : reader.GetString(4));

@@ -7,16 +7,15 @@ using StajEvrakSistemi.Models;
 namespace StajEvrakSistemi.Services;
 
 /// <summary>
-/// Staj başvurularındaki öğrenci bilgilerini, Admin'in içe aktardığı resmi Ek-16 staj
-/// listesiyle (OfficialStudentRecords) karşılaştırır. Tam eşleşen başvurunun Ek-16
-/// doğrulaması onaylanır, aksi halde uyuşmazlıklar raporlanır ve onay kaldırılır.
+/// Basvuru sahibinin ogrenci bilgilerini veri seti ve okunmus belge alanlariyla karsilastirir.
+/// Belge dogrulamasi yalnizca son yuklenen belgenin alanlari birlikte uyusursa kaydedilir.
 /// </summary>
 public class Ek16MatcherService
 {
     private static readonly CultureInfo Turkish = CultureInfo.GetCultureInfo("tr-TR");
 
     private const string SelectApplications = """
-        SELECT i.Id, i.StudentId, u.StudentNumber, u.IdentityNumber, u.FullName, i.Department, i.AcademicYear
+        SELECT i.Id, i.StudentId, u.StudentNumber, u.IdentityNumber, u.FullName, i.Department, i.AcademicYear, u.IsForeign
         FROM Internships i
         JOIN Users u ON u.Id = i.StudentId
         """;
@@ -31,99 +30,164 @@ public class Ek16MatcherService
     }
 
     /// <summary>
-    /// Tek bir başvuruyu Ek-16 listesiyle karşılaştırır ve doğrulama durumunu kaydeder.
+    /// Basvuruyu veri setiyle karsilastirir. Tek basina belge dogrulamasi vermez.
     /// </summary>
-    public Ek16ComparisonResult CompareWithEk16(int applicationId)
+    public Ek16ComparisonResult CompareWithEk16(User user, int applicationId)
     {
         using var connection = _database.GetConnection();
         using var transaction = connection.BeginTransaction();
 
-        var application = LoadApplications(connection, transaction, applicationId).SingleOrDefault()
-            ?? throw new KeyNotFoundException($"#{applicationId} numaralı staj başvurusu bulunamadı.");
+        var application = LoadAuthorizedApplication(connection, transaction, user, applicationId);
 
         var result = Compare(connection, transaction, application);
-        SaveVerification(connection, transaction, result);
+        if (!result.IsMatched)
+            InvalidateVerification(connection, transaction, applicationId);
 
         transaction.Commit();
         return result;
     }
 
     /// <summary>
-    /// Tüm başvuruları Ek-16 listesiyle karşılaştırır ve her birinin doğrulama durumunu kaydeder.
+    /// Yonetici icin tum basvurulari veri setiyle karsilastirir. Belge dogrulamasi vermez.
     /// </summary>
-    public IReadOnlyList<Ek16ComparisonResult> CompareAllApplicationsWithEk16()
+    public IReadOnlyList<Ek16ComparisonResult> CompareAllApplicationsWithEk16(User admin)
     {
         using var connection = _database.GetConnection();
         using var transaction = connection.BeginTransaction();
+
+        EnsureActor(connection, transaction, admin);
+        if (admin.Role != UserRole.Admin || !admin.HasPermission(Permission.ViewAllInternships))
+            throw new ForbiddenAccessException("Toplu karsilastirmayi yalnizca yonetici yapabilir.");
 
         var results = LoadApplications(connection, transaction, applicationId: null)
             .Select(application => Compare(connection, transaction, application))
             .ToList();
 
         foreach (var result in results)
-            SaveVerification(connection, transaction, result);
+            if (!result.IsMatched)
+                InvalidateVerification(connection, transaction, result.ApplicationId);
 
         transaction.Commit();
         return results;
     }
 
     /// <summary>
-    /// Başvuruya girilen bilgileri (öğrenci no, kimlik no, ad soyad, bölüm, öğretim yılı), yüklenen
-    /// Ek-16 belgesinden okunan değerlerle karşılaştırır ve belgenin teslime hazır olup olmadığını döndürür.
-    /// Hiçbir şey kaydedilmez; yalnızca karşılaştırma sonucu verilir.
+    /// Okunmus ogrenci alanlariyla formu karsilastirir. Bu on kontrol veri kaydetmez.
     /// </summary>
-    /// <exception cref="KeyNotFoundException">Başvuru bulunamadı.</exception>
-    public ScannedDocumentComparisonResult CompareFormWithScannedDocument(int applicationId, ScannedDocumentFields scanned)
+    /// <exception cref="KeyNotFoundException">Basvuru bulunamadi.</exception>
+    public ScannedDocumentComparisonResult CompareFormWithScannedDocument(
+        User user, int applicationId, ScannedDocumentFields scanned)
     {
         ArgumentNullException.ThrowIfNull(scanned);
 
         using var connection = _database.GetConnection();
         using var transaction = connection.BeginTransaction();
 
-        var app = LoadApplications(connection, transaction, applicationId).SingleOrDefault()
-            ?? throw new KeyNotFoundException($"#{applicationId} numaralı staj başvurusu bulunamadı.");
-
-        var discrepancies = new List<Ek16Discrepancy>();
-        CompareWithScanned(discrepancies, Ek16Field.StudentNumber, "Öğrenci numarası", app.StudentNumber, scanned.StudentNumber, false);
-        CompareWithScanned(discrepancies, Ek16Field.IdentityNumber, "T.C./Yabancı kimlik numarası", app.IdentityNumber, scanned.IdentityNumber, false);
-        CompareWithScanned(discrepancies, Ek16Field.FullName, "Ad soyad", app.FullName, scanned.FullName, true);
-        CompareWithScanned(discrepancies, Ek16Field.Department, "Bölüm", app.Department, scanned.Department, true);
-        CompareWithScanned(discrepancies, Ek16Field.AcademicYear, "Öğretim yılı (dönem)", app.AcademicYear, scanned.AcademicYear, false);
+        var app = LoadAuthorizedApplication(connection, transaction, user, applicationId);
+        var discrepancies = GetScannedDiscrepancies(app, scanned);
 
         return new ScannedDocumentComparisonResult(applicationId, discrepancies, _utcNow());
     }
 
     /// <summary>
-    /// Yüklenen Ek-16 belgesinden okunan değerleri, Admin'in yüklediği veri setindeki kayıtla karşılaştırır
-    /// (hoca: "sisteme yüklenen belgeler ile test veri setindeki bilgiler karşılaştırılacaktır").
-    /// Sonuç başvurunun Ek-16 doğrulama durumuna da yazılır: tam eşleşme onaylanır, uyuşmazlıkta onay kalkar.
+    /// Son belgenin ogrenci bilgilerini basvuru sahibi ve veri setiyle birlikte dogrular.
+    /// Okunmus alanlarin belirtilen belgeden alinmasi, belge okuyucunun sorumlulugundadir.
     /// </summary>
-    /// <exception cref="KeyNotFoundException">Başvuru bulunamadı.</exception>
-    public Ek16ComparisonResult CompareScannedDocumentWithDataset(int applicationId, ScannedDocumentFields scanned)
+    /// <exception cref="KeyNotFoundException">Basvuru veya belge bulunamadi.</exception>
+    public Ek16ComparisonResult CompareScannedDocumentWithDataset(
+        User user, int applicationId, int documentId, ScannedDocumentFields scanned)
     {
         ArgumentNullException.ThrowIfNull(scanned);
 
         using var connection = _database.GetConnection();
         using var transaction = connection.BeginTransaction();
 
-        var app = LoadApplications(connection, transaction, applicationId).SingleOrDefault()
-            ?? throw new KeyNotFoundException($"#{applicationId} numaralı staj başvurusu bulunamadı.");
+        var app = LoadAuthorizedApplication(connection, transaction, user, applicationId);
+        EnsureLatestDocument(connection, transaction, applicationId, documentId);
 
-        // Karşılaştırmanın "sol tarafı" artık başvuru değil, belgeden okunan değerlerdir.
-        var fromDocument = app with
-        {
-            StudentNumber = scanned.StudentNumber?.Trim(),
-            IdentityNumber = scanned.IdentityNumber?.Trim(),
-            FullName = scanned.FullName?.Trim() ?? string.Empty,
-            Department = scanned.Department?.Trim(),
-            AcademicYear = scanned.AcademicYear?.Trim() ?? string.Empty
-        };
-
-        var result = Compare(connection, transaction, fromDocument, "Ek-16 belgesinde");
-        SaveVerification(connection, transaction, result);
+        // Referans kayit belgedeki baska bir kisiye gore degil, basvuru sahibine gore secilir.
+        var reference = Compare(connection, transaction, app);
+        var discrepancies = reference.Discrepancies.Concat(GetScannedDiscrepancies(app, scanned)).Distinct().ToArray();
+        var result = new Ek16ComparisonResult(app.Id, app.StudentId, app.StudentNumber, app.FullName,
+            reference.MatchedRecord, discrepancies, reference.ComparedAt, documentId);
+        SaveVerification(connection, transaction, result, documentId);
 
         transaction.Commit();
         return result;
+    }
+
+    private static void EnsureActor(SqliteConnection connection, SqliteTransaction transaction, User user)
+    {
+        if (user is null)
+            throw new LoginRequiredException("Karsilastirma icin giris yapmalisiniz.");
+        UserGuard.EnsureUserInDatabase(connection, transaction, user);
+    }
+
+    private static ApplicationInfo LoadAuthorizedApplication(
+        SqliteConnection connection, SqliteTransaction transaction, User user, int applicationId)
+    {
+        EnsureActor(connection, transaction, user);
+        var app = LoadApplications(connection, transaction, applicationId).SingleOrDefault()
+            ?? throw new KeyNotFoundException("Karsilastirilacak basvuru bulunamadi.");
+        if (!user.HasPermission(Permission.ViewAllInternships)
+            && !(user.HasPermission(Permission.ViewOwnInternships) && app.StudentId == user.Id))
+            throw new ForbiddenAccessException("Yalnizca kendi basvurunuzun bilgilerini karsilastirabilirsiniz.");
+        return app;
+    }
+
+    private static void EnsureLatestDocument(
+        SqliteConnection connection, SqliteTransaction transaction, int applicationId, int documentId)
+    {
+        using var find = connection.CreateCommand();
+        find.Transaction = transaction;
+        find.CommandText = "SELECT InternshipId FROM Documents WHERE Id = $id AND DocumentType = 'Ek16';";
+        find.Parameters.AddWithValue("$id", documentId);
+        object? owner = find.ExecuteScalar();
+        if (owner is null or DBNull)
+            throw new KeyNotFoundException("Karsilastirilacak Ek-16 belgesi bulunamadi.");
+        if (Convert.ToInt32(owner, CultureInfo.InvariantCulture) != applicationId)
+            throw new ForbiddenAccessException("Belge secilen basvuruya ait degil.");
+
+        using var latest = connection.CreateCommand();
+        latest.Transaction = transaction;
+        latest.CommandText = "SELECT MAX(Id) FROM Documents WHERE InternshipId = $id AND DocumentType = 'Ek16';";
+        latest.Parameters.AddWithValue("$id", applicationId);
+        if (Convert.ToInt32(latest.ExecuteScalar(), CultureInfo.InvariantCulture) != documentId)
+            throw new InvalidOperationException("Karsilastirma son yuklenen Ek-16 belgesine ait olmali.");
+    }
+
+    private static List<Ek16Discrepancy> GetScannedDiscrepancies(ApplicationInfo app, ScannedDocumentFields scanned)
+    {
+        var errors = GetApplicationValidationErrors(app);
+        CompareWithScanned(errors, Ek16Field.StudentNumber, "Ogrenci numarasi", app.StudentNumber, scanned.StudentNumber, false);
+        CompareWithScanned(errors, Ek16Field.IdentityNumber, "Kimlik numarasi", app.IdentityNumber, scanned.IdentityNumber, false);
+        CompareWithScanned(errors, Ek16Field.FullName, "Ad soyad", app.FullName, scanned.FullName, true);
+        CompareWithScanned(errors, Ek16Field.Department, "Bolum", app.Department, scanned.Department, true);
+        CompareWithScanned(errors, Ek16Field.AcademicYear, "Ogretim yili", app.AcademicYear, scanned.AcademicYear, false);
+        if (!string.IsNullOrWhiteSpace(scanned.IdentityNumber))
+            CheckIdentity(errors, scanned.IdentityNumber.Trim(), app.IsForeign, "Belgedeki");
+        if (!string.IsNullOrWhiteSpace(scanned.StudentNumber) && !FormatValidator.IsValidStudentNumber(scanned.StudentNumber))
+            errors.Add(new(Ek16Field.StudentNumber, scanned.StudentNumber, null, "Belgedeki ogrenci numarasinin bicimi gecersiz."));
+        return errors;
+    }
+
+    private static List<Ek16Discrepancy> GetApplicationValidationErrors(ApplicationInfo app)
+    {
+        var errors = new List<Ek16Discrepancy>();
+        CheckIdentity(errors, app.IdentityNumber?.Trim(), app.IsForeign, "Kayitli");
+        if (!FormatValidator.IsValidStudentNumber(app.StudentNumber))
+            errors.Add(new(Ek16Field.StudentNumber, app.StudentNumber, null, "Kayitli ogrenci numarasinin bicimi gecersiz."));
+        if (!InternshipDateValidator.IsAcademicYearValid(app.AcademicYear))
+            errors.Add(new(Ek16Field.AcademicYear, app.AcademicYear, null, "Kayitli ogretim yilinin bicimi gecersiz."));
+        return errors;
+    }
+
+    private static void CheckIdentity(List<Ek16Discrepancy> errors, string? identity, bool isForeign, string source)
+    {
+        if (!IdentityNumberValidator.IsValidForNationality(identity, isForeign, validateChecksum: true))
+            errors.Add(new(Ek16Field.IdentityNumber, identity, null, isForeign
+                ? $"{source} yabanci kimlik numarasi 11 rakamdan olusmali ve 99 ile baslamali."
+                : $"{source} T.C. kimlik numarasinin bicimi veya kontrol haneleri gecersiz."));
     }
 
     private Ek16ComparisonResult Compare(
@@ -131,6 +195,7 @@ public class Ek16MatcherService
     {
         DateTime now = _utcNow();
         var official = FindBestRecord(connection, transaction, app);
+        var discrepancies = GetApplicationValidationErrors(app);
 
         if (official is null)
         {
@@ -141,10 +206,14 @@ public class Ek16MatcherService
                 $"Öğrenci Ek-16 staj listesinde bulunamadı (öğrenci no: {app.StudentNumber ?? "yok"}, " +
                 $"kimlik no: {app.IdentityNumber ?? "yok"}).");
 
-            return new Ek16ComparisonResult(app.Id, app.StudentId, app.StudentNumber, app.FullName, null, new[] { notFound }, now);
+            discrepancies.Add(notFound);
+            return new Ek16ComparisonResult(app.Id, app.StudentId, app.StudentNumber, app.FullName, null, discrepancies, now);
         }
 
-        var discrepancies = new List<Ek16Discrepancy>();
+        CheckIdentity(discrepancies, official.IdentityNumber, official.IsForeign, "Veri setindeki");
+        if (app.IsForeign != official.IsForeign)
+            discrepancies.Add(new(Ek16Field.Nationality, app.IsForeign ? "Yabanci" : "T.C.", official.Nationality,
+                "Kayitli uyruk secimi veri setindeki uyrukla uyusmuyor."));
 
         CompareExact(discrepancies, Ek16Field.StudentNumber, "Öğrenci numarası", app.StudentNumber, official.StudentNumber, source);
         CompareExact(discrepancies, Ek16Field.IdentityNumber, "T.C./Yabancı kimlik numarası", app.IdentityNumber, official.IdentityNumber, source);
@@ -252,15 +321,44 @@ public class Ek16MatcherService
     private static string NormalizeText(string value) =>
         string.Join(' ', value.Split(' ', StringSplitOptions.RemoveEmptyEntries)).ToUpper(Turkish);
 
-    private static void SaveVerification(SqliteConnection connection, SqliteTransaction transaction, Ek16ComparisonResult result)
+    private static void SaveVerification(
+        SqliteConnection connection, SqliteTransaction transaction, Ek16ComparisonResult result, int documentId)
     {
+        if (!result.IsMatched)
+        {
+            InvalidateVerification(connection, transaction, result.ApplicationId);
+            return;
+        }
         using var command = connection.CreateCommand();
         command.Transaction = transaction;
         command.CommandText = "UPDATE Internships SET Ek16Verified = $verified, Ek16VerifiedAt = $verifiedAt WHERE Id = $id;";
-        command.Parameters.AddWithValue("$verified", result.IsMatched ? 1 : 0);
-        command.Parameters.AddWithValue("$verifiedAt",
-            result.IsMatched ? result.ComparedAt.ToString("o", CultureInfo.InvariantCulture) : DBNull.Value);
+        command.Parameters.AddWithValue("$verified", 1);
+        command.Parameters.AddWithValue("$verifiedAt", result.ComparedAt.ToString("o", CultureInfo.InvariantCulture));
         command.Parameters.AddWithValue("$id", result.ApplicationId);
+        command.ExecuteNonQuery();
+
+        using var document = connection.CreateCommand();
+        document.Transaction = transaction;
+        document.CommandText = """
+            UPDATE Documents SET StudentFieldsVerified = 1, StudentFieldsVerifiedAt = $at
+            WHERE Id = $documentId AND InternshipId = $applicationId;
+            """;
+        document.Parameters.AddWithValue("$at", result.ComparedAt.ToString("o", CultureInfo.InvariantCulture));
+        document.Parameters.AddWithValue("$documentId", documentId);
+        document.Parameters.AddWithValue("$applicationId", result.ApplicationId);
+        document.ExecuteNonQuery();
+    }
+
+    private static void InvalidateVerification(SqliteConnection connection, SqliteTransaction transaction, int applicationId)
+    {
+        using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = """
+            UPDATE Internships SET Ek16Verified = 0, Ek16VerifiedAt = NULL WHERE Id = $id;
+            UPDATE Documents SET StudentFieldsVerified = 0, StudentFieldsVerifiedAt = NULL, IsApproved = 0
+            WHERE InternshipId = $id;
+            """;
+        command.Parameters.AddWithValue("$id", applicationId);
         command.ExecuteNonQuery();
     }
 
@@ -286,7 +384,7 @@ public class Ek16MatcherService
                 reader.IsDBNull(3) ? null : reader.GetString(3),
                 reader.GetString(4),
                 reader.IsDBNull(5) ? null : reader.GetString(5),
-                reader.GetString(6)));
+                reader.GetString(6), reader.GetInt32(7) == 1));
         }
         return applications;
     }
@@ -318,5 +416,6 @@ public class Ek16MatcherService
         string? IdentityNumber,
         string FullName,
         string? Department,
-        string AcademicYear);
+        string AcademicYear,
+        bool IsForeign);
 }

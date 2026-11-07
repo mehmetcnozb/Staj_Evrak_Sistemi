@@ -322,7 +322,8 @@ public class StatusWorkflowEngine
         command.Transaction = transaction;
         command.CommandText = """
             SELECT Id, FilePath, StudentApprovalPresent, AdvisorApprovalPresent, EmployerFieldsComplete,
-                   EmployerStampPresent, EmployerSignaturePresent, ApprovalReviewedByUserId, ApprovalReviewedAt, UploadedAt
+                   EmployerStampPresent, EmployerSignaturePresent, ApprovalReviewedByUserId, ApprovalReviewedAt, UploadedAt,
+                   StudentFieldsVerified, StudentFieldsVerifiedAt
             FROM Documents WHERE InternshipId = $id AND DocumentType = 'Ek16' ORDER BY Id DESC LIMIT 1;
             """;
         command.Parameters.AddWithValue("$id", applicationId);
@@ -331,6 +332,8 @@ public class StatusWorkflowEngine
             throw new InvalidOperationException("Onay icin yuklenmis bir Ek-16 belgesi gerekli.");
 
         int documentId = reader.GetInt32(0);
+        if (reader.GetInt32(10) != 1 || reader.IsDBNull(11))
+            errors.Add("Son belgenin ogrenci bilgileri basvuru ve veri setiyle karsilastirilmali.");
         bool? Flag(int index) => reader.IsDBNull(index) ? null : reader.GetInt32(index) == 1;
         var fields = new DocumentApprovalFields(Flag(2), Flag(3), Flag(4), Flag(5), Flag(6));
         errors.AddRange(EngineerApprovalValidator.GetDocumentApprovalErrors(fields));

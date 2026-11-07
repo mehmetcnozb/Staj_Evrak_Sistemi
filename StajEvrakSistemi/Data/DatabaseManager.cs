@@ -84,6 +84,17 @@ public class DatabaseManager
         EnsureColumn(connection, transaction, "Documents", "EmployerSignaturePresent", "INTEGER CHECK (EmployerSignaturePresent IN (0, 1))");
         EnsureColumn(connection, transaction, "Documents", "ApprovalReviewedByUserId", "INTEGER REFERENCES Users(Id) ON DELETE SET NULL");
         EnsureColumn(connection, transaction, "Documents", "ApprovalReviewedAt", "TEXT");
+        bool addedStudentVerification = EnsureColumn(connection, transaction, "Documents", "StudentFieldsVerified",
+            "INTEGER NOT NULL DEFAULT 0 CHECK (StudentFieldsVerified IN (0, 1))");
+        EnsureColumn(connection, transaction, "Documents", "StudentFieldsVerifiedAt", "TEXT");
+        if (addedStudentVerification)
+        {
+            // Eski veri seti eslesmeleri belgeye bagli dogrulama yerine gecmez.
+            using var reset = connection.CreateCommand();
+            reset.Transaction = transaction;
+            reset.CommandText = "UPDATE Internships SET Ek16Verified = 0, Ek16VerifiedAt = NULL;";
+            reset.ExecuteNonQuery();
+        }
 
         transaction.Commit();
     }
@@ -113,7 +124,7 @@ public class DatabaseManager
         }
     }
 
-    private static void EnsureColumn(
+    private static bool EnsureColumn(
         SqliteConnection connection, SqliteTransaction transaction, string table, string column, string definition)
     {
         using (var check = connection.CreateCommand())
@@ -125,7 +136,7 @@ public class DatabaseManager
             while (reader.Read())
             {
                 if (string.Equals(reader.GetString(1), column, StringComparison.OrdinalIgnoreCase))
-                    return;
+                    return false;
             }
         }
 
@@ -133,6 +144,7 @@ public class DatabaseManager
         alter.Transaction = transaction;
         alter.CommandText = $"ALTER TABLE {table} ADD COLUMN {column} {definition};";
         alter.ExecuteNonQuery();
+        return true;
     }
 
     private const string CreateUsersTable = """
@@ -198,6 +210,8 @@ public class DatabaseManager
             EmployerSignaturePresent INTEGER CHECK (EmployerSignaturePresent IN (0, 1)),
             ApprovalReviewedByUserId INTEGER,
             ApprovalReviewedAt TEXT,
+            StudentFieldsVerified INTEGER NOT NULL DEFAULT 0 CHECK (StudentFieldsVerified IN (0, 1)),
+            StudentFieldsVerifiedAt TEXT,
             FOREIGN KEY (InternshipId) REFERENCES Internships(Id) ON DELETE CASCADE,
             FOREIGN KEY (ApprovalReviewedByUserId) REFERENCES Users(Id) ON DELETE SET NULL
         );

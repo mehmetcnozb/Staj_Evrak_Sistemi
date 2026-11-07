@@ -107,7 +107,10 @@ public class InternshipService
         using (var resetApproval = connection.CreateCommand())
         {
             resetApproval.Transaction = transaction;
-            resetApproval.CommandText = "UPDATE Documents SET IsApproved = 0, RejectionReason = NULL WHERE InternshipId = $id;";
+            resetApproval.CommandText = """
+                UPDATE Documents SET IsApproved = 0, RejectionReason = NULL,
+                    StudentFieldsVerified = 0, StudentFieldsVerifiedAt = NULL WHERE InternshipId = $id;
+                """;
             resetApproval.Parameters.AddWithValue("$id", application.Id);
             resetApproval.ExecuteNonQuery();
         }
