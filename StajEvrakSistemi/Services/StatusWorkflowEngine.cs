@@ -304,21 +304,29 @@ public class StatusWorkflowEngine
         if (!application.Ek16Verified)
             throw new InvalidOperationException("Basvuru Ek-16 veri setiyle yeniden dogrulanmali.");
 
-        var engineerDetails = new InternshipApplication
+        var details = new InternshipApplication
         {
+            AcademicYear = application.AcademicYear,
+            StartDate = application.StartDate,
+            EndDate = application.EndDate,
             EngineerCount = application.EngineerCount,
             ResponsibleEngineerName = application.ResponsibleEngineerName,
             ResponsibleEngineerTitle = application.ResponsibleEngineerTitle,
             EngineerRegistrationNumber = application.EngineerRegistrationNumber,
             EngineerGraduationDepartment = application.EngineerGraduationDepartment
         };
-        var errors = EngineerApprovalValidator.GetEngineerErrors(engineerDetails).ToList();
+        var errors = EngineerApprovalValidator.GetEngineerErrors(details).ToList();
+        if (!application.CreatedAt.HasValue)
+            errors.Add("Kayitli ilk basvuru tarihi bulunamadi veya okunamadi.");
+        else
+            errors.AddRange(InternshipDateValidator.GetApplicationErrors(details,
+                InternshipDateValidator.ToTurkeyDate(application.CreatedAt.Value), AcademicCalendars.Kocaeli2026_2027));
 
         using var command = connection.CreateCommand();
         command.Transaction = transaction;
         command.CommandText = """
             SELECT Id, FilePath, StudentApprovalPresent, AdvisorApprovalPresent, EmployerFieldsComplete,
-                   EmployerStampPresent, EmployerSignaturePresent, ApprovalReviewedByUserId, ApprovalReviewedAt
+                   EmployerStampPresent, EmployerSignaturePresent, ApprovalReviewedByUserId, ApprovalReviewedAt, UploadedAt
             FROM Documents WHERE InternshipId = $id AND DocumentType = 'Ek16' ORDER BY Id DESC LIMIT 1;
             """;
         command.Parameters.AddWithValue("$id", applicationId);
@@ -332,6 +340,13 @@ public class StatusWorkflowEngine
         errors.AddRange(EngineerApprovalValidator.GetDocumentApprovalErrors(fields));
         if (reader.IsDBNull(7) || reader.IsDBNull(8))
             errors.Add("Son yuklenen belge icin yonetici incelemesi kaydedilmeli.");
+
+        // Onay gunu yerine son belgenin gercek teslim zamani kullanilir.
+        DateTime? uploadedAt = !reader.IsDBNull(9)
+            && DateTime.TryParse(reader.GetString(9), CultureInfo.InvariantCulture,
+                DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var timestamp)
+            ? timestamp : null;
+        errors.AddRange(InternshipDateValidator.GetDocumentDeliveryErrors(uploadedAt, application.StartDate));
 
         var document = new Ek16Document(applicationId, reader.GetString(1));
         errors.AddRange(document.GetValidationErrors());
@@ -347,7 +362,7 @@ public class StatusWorkflowEngine
         command.Transaction = transaction;
         command.CommandText = """
             SELECT Status, StudentId, Ek16Verified, EngineerCount, ResponsibleEngineerName, ResponsibleEngineerTitle,
-                   EngineerRegistrationNumber, EngineerGraduationDepartment
+                   EngineerRegistrationNumber, EngineerGraduationDepartment, AcademicYear, StartDate, EndDate, CreatedAt
             FROM Internships WHERE Id = $id;
             """;
         command.Parameters.AddWithValue("$id", applicationId);
@@ -360,11 +375,15 @@ public class StatusWorkflowEngine
             throw new InvalidOperationException($"#{applicationId} başvurusunda bilinmeyen statü: {reader.GetString(0)}");
 
         string? Str(int index) => reader.IsDBNull(index) ? null : reader.GetString(index);
+        DateTime Date(int index) => DateTime.TryParseExact(Str(index), "yyyy-MM-dd", CultureInfo.InvariantCulture,
+            DateTimeStyles.None, out var value) ? value : default;
+        DateTime? createdAt = DateTime.TryParse(Str(11), CultureInfo.InvariantCulture,
+            DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var timestamp) ? timestamp : null;
         return new ApplicationInfo(status, reader.GetInt32(1), reader.GetInt32(2) == 1, reader.GetInt32(3),
-            Str(4), Str(5), Str(6), Str(7));
+            Str(4), Str(5), Str(6), Str(7), Str(8) ?? string.Empty, Date(9), Date(10), createdAt);
     }
 
     private sealed record ApplicationInfo(ApplicationStatus Status, int StudentId, bool Ek16Verified, int EngineerCount,
         string? ResponsibleEngineerName, string? ResponsibleEngineerTitle, string? EngineerRegistrationNumber,
-        string? EngineerGraduationDepartment);
+        string? EngineerGraduationDepartment, string AcademicYear, DateTime StartDate, DateTime EndDate, DateTime? CreatedAt);
 }

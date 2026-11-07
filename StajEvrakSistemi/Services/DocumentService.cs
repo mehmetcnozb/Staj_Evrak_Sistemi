@@ -47,6 +47,10 @@ public class DocumentService
         // Rol veritabanından doğrulanır; sahiplik ve statü kısıtı (kilitli statüde yükleme yok) kontrol edilir.
         _engine.ValidateUpdateOperation(internshipId, student);
 
+        DateTime uploadedAt = _utcNow();
+        using (var connection = _database.GetConnection())
+            ValidateUploadDates(connection, null, internshipId, uploadedAt);
+
         var candidate = new Ek16Document(internshipId, sourceFilePath);
         var errors = candidate.GetValidationErrors();
         if (errors.Count > 0)
@@ -57,11 +61,13 @@ public class DocumentService
         string destination = Path.Combine(directory, $"{Guid.NewGuid():N}.{candidate.FileFormat}");
         File.Copy(sourceFilePath, destination);
 
-        var document = new Ek16Document(internshipId, destination);
+        var document = new Ek16Document(internshipId, destination) { UploadedAt = uploadedAt };
         try
         {
             using var connection = _database.GetConnection();
             using var transaction = connection.BeginTransaction();
+            // Dosya kopyalanirken basvuru tarihleri degistiyse guncel kayit kontrol edilir.
+            ValidateUploadDates(connection, transaction, internshipId, uploadedAt);
             using var command = connection.CreateCommand();
             command.Transaction = transaction;
             command.CommandText = """
@@ -227,6 +233,33 @@ public class DocumentService
 
         try { File.Delete(filePath); }
         catch (IOException) { /* kayıt silindi; dosya başka işlem tarafından kullanılıyorsa yetim kalabilir */ }
+    }
+
+    private static void ValidateUploadDates(
+        SqliteConnection connection, SqliteTransaction? transaction, int internshipId, DateTime uploadedAt)
+    {
+        using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = "SELECT AcademicYear, StartDate, EndDate FROM Internships WHERE Id = $id;";
+        command.Parameters.AddWithValue("$id", internshipId);
+        using var reader = command.ExecuteReader();
+        if (!reader.Read())
+            throw new KeyNotFoundException("Belgenin ait oldugu basvuru bulunamadi.");
+
+        if (!DateTime.TryParseExact(reader.GetString(1), "yyyy-MM-dd", CultureInfo.InvariantCulture,
+                DateTimeStyles.None, out DateTime startDate)
+            || !DateTime.TryParseExact(reader.GetString(2), "yyyy-MM-dd", CultureInfo.InvariantCulture,
+                DateTimeStyles.None, out DateTime endDate))
+            throw new DocumentValidationException(new[] { "Basvurunun kayitli staj tarihleri okunamadi." });
+
+        var application = new InternshipApplication
+        {
+            AcademicYear = reader.GetString(0), StartDate = startDate, EndDate = endDate
+        };
+        var errors = InternshipDateValidator.GetApplicationErrors(application,
+            InternshipDateValidator.ToTurkeyDate(uploadedAt), AcademicCalendars.Kocaeli2026_2027);
+        if (errors.Count > 0)
+            throw new DocumentValidationException(errors);
     }
 
     // Belge degisince onceki karsilastirma sonucu yeniden kullanilamaz.

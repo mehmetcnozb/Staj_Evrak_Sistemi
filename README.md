@@ -16,7 +16,7 @@ Mevcut ozellikler:
 *bilgi karsilastirma       - onceden okunup servise verilen ogrenci numarasi, kimlik numarasi, ad soyad, bolum ve ogretim yili karsilastirilabiliyor.
 *muhendis ve onay kontrolu - muhendis sayisi ve sorumlu muhendis bilgileri kontrol ediliyor. adminin son belge icin kaydettigi onay, imza ve kase incelemesi onay akisinda denetleniyor.
 *durum takibi              - degisiklik gecmisi tutuyor. tamamlanan basvurularda ogrencinin degistirmesi engelleniyor. admin degistiriyor.
-*tarih kontrolleri         - ogretim yili bicimi, takvimle yil eslesmesi, 30 gun kurali ve ders donemi cakismasi basvuru kaydinda ve guncellemede kontrol ediliyor. sure yetersizse son teslim tarihi bildiriliyor.
+*tarih kontrolleri         - ogretim yili, 30 gun ve ders cakismasi kurallari basvuru kaydi, guncelleme ve belge yuklemede kontrol ediliyor. onay ve tamamlanmada kayitli basvuru ve son belge teslim tarihleri tekrar denetleniyor.
 *staj gunu hesabi          - secilen calisma gunleri ve 2026-2027 resmi tatil takvimine gore net staj gunu hesaplaniyor. basvuru olusturulurken ve guncellenirken sonuc kaydediliyor. minimum gun sayisi ayarlanmissa kontrol ediliyor. Ek-16 da belirtilen gun sayisiyla eslesme metodu da bulunuyor.
 ---------------------------------------------------------------------------------------------
 Projede kullanilan teknolojiler:
@@ -47,7 +47,7 @@ Staj_Evrak_Sistemi/
             Permission.cs (Sistemde yapilabilecek yetkili islemleri-fonksiyonlari tanimlar.)
             RolePermissions.cs (Permission.cs deki islemleri, hangi rollerin yapabilecegini kisitlar)
             UserRole.cs (Aktif olan kullanici rollerini tanimlar.)
-            InternshipDateValidator.cs (ogretim yilinin dogru yazilip yazilmadigini ve takvimle ayni yilda olup olmadigini kontrol eder. 30 gun kuralini, son teslim tarihini ve ders donemi cakismasini da kontrol eder. kayit akisinin kullanacagi tarih hatalarini liste olarak dondurur.)
+            InternshipDateValidator.cs (ogretim yilinin dogru yazilip yazilmadigini ve takvimle ayni yilda olup olmadigini kontrol eder. 30 gun kuralini, son teslim tarihini ve ders donemi cakismasini da kontrol eder. kayit akisinin kullanacagi tarih hatalarini liste olarak dondurur. UTC zamanini Turkiye tarihine cevirir, belge teslim suresini de kontrol eder.)
             InternshipDayCalculator.cs (secilen calisma gunleri ve verilen tatil listesiyle net staj gununu hesaplar. minimum gun sartini ve Ek-16 da belirtilen gun sayisiyla eslesmeyi kontrol eder.)
 
         
@@ -78,7 +78,7 @@ Staj_Evrak_Sistemi/
             AuthorizationExceptions.cs	(Giris yapilmamasi ve yetkisiz erisim durumlarinda kullanilacak hata siniflarini tanimlar.)
             DatasetImportService.cs	(Adminin CSV/JSON veri setini okur, kimlik ve ogrenci numarasini kontrol eder. girilmis e-posta, telefon ve adresin bicimini de kontrol eder. hatali satirlar raporlanir, gecerli kayitlar veritabanina aktarilir.)
             DatasetImportResult.cs	(Veri seti aktariminin sonuclarini tasir: eklenen, tekrarlanan ve hatali kayitlar gibi.)
-            DocumentService.cs	(Ek-16 yukleme, listeleme ve silme islemlerini yapar. adminin son belge icin onay alani incelemesini kaydeder. belge yuklenince veya silinince eski karsilastirma sonucu sifirlanir.)
+            DocumentService.cs	(Ek-16 yukleme, listeleme ve silme islemlerini yapar. her yuklemede staj tarihlerini ve 30 gun suresini kontrol eder, teslim zamanini sistem saatinden kaydeder. adminin son belge incelemesini de saklar. belge yuklenince veya silinince eski karsilastirma sonucu sifirlanir.)
             DocumentValidationException.cs	(Dosya kabul edilmediginde, ornegin formati veya boyutu uygun degilse, hata nedenlerini tasir.)
             Ek16MatcherService.cs	(ogrenci bilgilerini, belgeden gelen alanlari ve adminin veri setini karsilastirip uyusmazliklari belirler.)
             InternshipService.cs	(Staj basvurusu olusturma, goruntuleme, guncelleme, silme ve listeleme islemlerini yapar. format veya tarih hataliysa kaydi engeller. tarih kontrolunde ilk basvuru zamanini Turkiye tarihine cevirir. guncellemede veritabanindaki ilk kayit zamani esas alinir. kurum IBAN, vergi numarasi ve sorumlu muhendis bilgilerini kaydeder. guncellemede eski karsilastirma sonucu ve belge onayi sifirlanir. net staj gununu hesaplar ve minimum gun sayisi verilmisse kontrol eder.)
@@ -86,7 +86,7 @@ Staj_Evrak_Sistemi/
             PasswordHasher.cs	(sifreleri rastgele salt kullanarak hash ler; giriste verilen sifreyi kayitli hash ile dogrular.)
             SessionManager.cs	(Kullanici oturumlarini olusturur, token ve sure kontrolu yapar, cikista oturumu kapatir.)
             UserSession.cs	(Bir oturumun kullanici numarasi, rolu, token i, baslangic ve bitis zamanini tasir.)
-            StatusWorkflowEngine.cs	(Basvuru durum gecislerini, izinleri ve degisiklik gecmisini yonetir. onaylanirken ve tamamlanirken veri seti dogrulamasi, muhendis bilgileri, son belge ve onay alanlari yeniden kontrol edilir.)
+            StatusWorkflowEngine.cs	(Basvuru durum gecislerini, izinleri ve degisiklik gecmisini yonetir. onaylanirken ve tamamlanirken veri seti dogrulamasi, muhendis bilgileri, son belge, onay alanlari ve kayitli tarihler yeniden kontrol edilir.)
             UserGuard.cs	(islem yapan kullanicinin veritabaninda bulundugunu ve rolunun kayitli rolle eslestigini kontrol eder.)
             
         
@@ -96,13 +96,11 @@ Staj_Evrak_Sistemi/
 ---------------------------------------------------------------------------------------------
 Gelistirme durumu
 
-Temel veritabani, kullanici islemleri, yetkilendirme, basvuru yonetimi, veri seti aktarimi ve belge yukleme servisleri gelistirilmistir. Ogretim yili bicimi, takvimle yil eslesmesi, 30 gun kurali ve ders donemi cakisma kontrolleri de eklendi. tarih kontrolleri basvuru olusturma ve guncelleme akisina baglandi. desteklenen takvimle yil eslesmeli, en az 30 gun bulunmali ve staj ders donemiyle cakismamali. Net staj gunu hesabi, minimum gun ve belgedeki gun sayisiyla eslesme kontrolleri de eklendi. 2026 ve 2027 resmi tatil takvimi hazir. basvuru olusturulurken ve guncellenirken net gun yeniden hesaplaniyor ve kaydediliyor. minimum gun sayisi ayarlanmissa kayit sirasinda kontrol ediliyor. Yeni kullanici kaydi ve veri seti aktariminda T.C. kontrol haneleri ve yabanci kimlik kurallari denetleniyor. Turkiye umuma mahsus pasaport icin ayri bicim kontrolu eklendi. Format kontrolleri kullanici kaydina, veri seti aktarimina ve basvuru kaydina baglandi. kurum IBAN ve vergi numarasi alanlari da eklendi. Muhendis ve belge onay kontrolleri onay akisina baglandi. admin incelemesi son belgeye kaydediliyor, inceleyen kisi ve zaman tutuluyor. Web arayuzuyle entegrasyon henuz yapilmamistir.
+Temel veritabani, kullanici islemleri, yetkilendirme, basvuru yonetimi, veri seti aktarimi ve belge yukleme servisleri gelistirilmistir. Ogretim yili bicimi, takvimle yil eslesmesi, 30 gun kurali ve ders donemi cakisma kontrolleri de eklendi. tarih kontrolleri basvuru olusturma ve guncelleme akisina baglandi. desteklenen takvimle yil eslesmeli, en az 30 gun bulunmali ve staj ders donemiyle cakismamali. belge yukleme ve yeniden yukleme tarihleri de kontrol ediliyor. onay ve tamamlanmada ilk basvuru ve son belgenin kayitli teslim zamanlariyla tarih kurallari yeniden denetleniyor. Net staj gunu hesabi, minimum gun ve belgedeki gun sayisiyla eslesme kontrolleri de eklendi. 2026 ve 2027 resmi tatil takvimi hazir. basvuru olusturulurken ve guncellenirken net gun yeniden hesaplaniyor ve kaydediliyor. minimum gun sayisi ayarlanmissa kayit sirasinda kontrol ediliyor. Yeni kullanici kaydi ve veri seti aktariminda T.C. kontrol haneleri ve yabanci kimlik kurallari denetleniyor. Turkiye umuma mahsus pasaport icin ayri bicim kontrolu eklendi. Format kontrolleri kullanici kaydina, veri seti aktarimina ve basvuru kaydina baglandi. kurum IBAN ve vergi numarasi alanlari da eklendi. Muhendis ve belge onay kontrolleri onay akisina baglandi. admin incelemesi son belgeye kaydediliyor, inceleyen kisi ve zaman tutuluyor. Web arayuzuyle entegrasyon henuz yapilmamistir.
 ---------------------------------------------------------------------------------------------
 Yapilacak isler
 
 Yariyil bilgisinin ve staj tarihlerinin secilen akademik takvimle uyumunun kontrol edilmesi.
-
-Belgenin ilk yuklenme ve yeniden yuklenme tarihinin de 30 gun kuralina baglanmasi. eski basvurularin onay asamasinda tarih kurallarindan tekrar gecirilmesi.
 
 Resmi tatil takviminin diger yillar icin genisletilmesi.
 
@@ -148,9 +146,15 @@ Tarih kontrolleri basvuru olusturma ve guncelleme islemlerine baglandi. kurala u
 Bu asamada takvim olarak daha once secilen Kocaeli 2026-2027 kullaniliyor. farkli ogretim yili girilirse takvimin tanimli olmadigi bildiriliyor.
 Basvuru zamani sistem saatinden aliniyor, veritabanina UTC olarak kaydediliyor. 30 gun hesabi icin Turkiye'deki takvim tarihine cevriliyor.
 Guncellemede ilk basvuru zamani degismiyor. formdaki deger yerine veritabaninda kayitli ilk zaman kullaniliyor. bu bilgi eski kayitta yoksa guncelleme engelleniyor, tarih uydurulmuyor.
-Sure 30 gunden azsa hata mesajinda son teslim tarihi de veriliyor. saat ve dakika farki takvim gunu hesabini degistirmiyor.
+Sure 30 gunden azsa hata mesajinda son teslim tarihi de veriliyor. ayni takvim gunu icindeki saat ve dakika farklari hesaba katilmiyor.
 Yariyil bilgisinin ve staj tarihinin ogretim yili sinirlariyla ayrintili uyumu henuz tamamlanmadi.
-Belge yukleme tarihine gore teslim kontrolu, eski kayitlarin onay sirasinda tarih kontrolu ve web ekranlari bu adima dahil degil.
+Ilk belge yukleme ve yeniden yuklemede 30 gun suresi, ogretim yili ve ders cakismasi kontrol ediliyor. basvuruyu erken acmak gec belge teslimine izin vermiyor.
+Teslim zamani sistemden bir kez aliniyor. kontrol edilen zaman hem belge nesnesine hem veritabanina ayni sekilde kaydediliyor.
+Gec yukleme reddedilirse yeni belge kaydi olusmuyor. onceki belge, durum gecmisi ve dogrulama sonucu korunuyor.
+Onaylandi ve Tamamlandi durumlarina geciste ilk basvuru tarihi ve son belgenin teslim tarihi yeniden kontrol ediliyor. ders cakismasi ve takvim yili da denetleniyor.
+Onay gunu teslim tarihi olarak alinmiyor. zamaninda yuklenen belge staj basladiktan sonra da onaylanip tamamlanabiliyor.
+Eski kayitlarda basvuru veya belge teslim zamani eksikse ya da okunamiyorsa onay engelleniyor. tarih uydurulmuyor.
+Tarih hatalarinin web ekranlarinda gosterilmesi henuz yapilmadi.
 ---------------------------------------------------------------------------------------------
 Staj gunu hesabi
 Baslangic ve bitis gunleri dahil, ogrencinin sectigi haftalik calisma gunleri sayiliyor.

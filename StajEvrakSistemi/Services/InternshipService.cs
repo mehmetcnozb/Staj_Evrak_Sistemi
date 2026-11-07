@@ -14,7 +14,6 @@ namespace StajEvrakSistemi.Services;
 public class InternshipService
 {
     private const string DateFormat = "yyyy-MM-dd";
-    private static readonly TimeZoneInfo TurkeyTimeZone = TimeZoneInfo.FindSystemTimeZoneById("Europe/Istanbul");
 
     private const string SelectColumns = """
         Id, StudentId, AcademicYear, Semester, StartDate, EndDate, CompanyName, Department, Address, Phone, Email, Fax,
@@ -218,8 +217,7 @@ public class InternshipService
     private static void ValidateDates(InternshipApplication application, DateTime createdAt)
     {
         // Otuz gun hesabi UTC saatiyle degil, Turkiye'deki takvim tarihiyle yapilir.
-        DateTime submissionDate = TimeZoneInfo.ConvertTimeFromUtc(
-            DateTime.SpecifyKind(createdAt, DateTimeKind.Utc), TurkeyTimeZone).Date;
+        DateTime submissionDate = InternshipDateValidator.ToTurkeyDate(createdAt);
         var errors = InternshipDateValidator.GetApplicationErrors(
             application, submissionDate, AcademicCalendars.Kocaeli2026_2027);
         if (errors.Count > 0)

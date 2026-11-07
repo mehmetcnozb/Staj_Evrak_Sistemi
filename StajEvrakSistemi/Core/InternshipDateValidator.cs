@@ -6,6 +6,21 @@ namespace StajEvrakSistemi.Core;
 public static class InternshipDateValidator
 {
     public const int MinimumLeadDays = 30;
+    private static readonly TimeZoneInfo TurkeyTimeZone = TimeZoneInfo.FindSystemTimeZoneById("Europe/Istanbul");
+
+    // Sistem UTC zamanini Turkiye'deki takvim tarihine cevirir.
+    public static DateTime ToTurkeyDate(DateTime utcTime) => TimeZoneInfo.ConvertTimeFromUtc(
+        DateTime.SpecifyKind(utcTime, DateTimeKind.Utc), TurkeyTimeZone).Date;
+
+    public static IReadOnlyList<string> GetDocumentDeliveryErrors(DateTime? uploadedAtUtc, DateTime internshipStartDate)
+    {
+        if (!uploadedAtUtc.HasValue)
+            return new[] { "Belgenin kayitli teslim tarihi bulunamadi veya okunamadi." };
+        if (internshipStartDate == default)
+            return new[] { "Staj baslangic tarihi girilmeli." };
+
+        return GetLeadTimeErrors(ToTurkeyDate(uploadedAtUtc.Value), internshipStartDate);
+    }
 
     // Kayit akisinin kullanacagi ortak tarih kontrolleri.
     public static IReadOnlyList<string> GetApplicationErrors(
@@ -31,13 +46,7 @@ public static class InternshipDateValidator
             return errors;
         }
 
-        if (!IsSubmissionOnTime(submissionDate, application.StartDate))
-        {
-            string message = $"Basvuru staj baslangicindan en az {MinimumLeadDays} takvim gunu once yapilmali.";
-            if (application.StartDate.Date >= DateTime.MinValue.AddDays(MinimumLeadDays))
-                message += $" Son teslim tarihi: {GetLatestSubmissionDate(application.StartDate).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)}.";
-            errors.Add(message);
-        }
+        errors.AddRange(GetLeadTimeErrors(submissionDate, application.StartDate));
 
         // Baska bir yilin dersleri secilen takvimle kontrol edilemez.
         if (MatchesAcademicCalendar(application.AcademicYear, calendar)
@@ -45,6 +54,17 @@ public static class InternshipDateValidator
             errors.Add("Staj tarihleri akademik takvimdeki guz veya bahar ders donemiyle cakisiyor.");
 
         return errors;
+    }
+
+    private static IReadOnlyList<string> GetLeadTimeErrors(DateTime submissionDate, DateTime internshipStartDate)
+    {
+        if (IsSubmissionOnTime(submissionDate, internshipStartDate))
+            return Array.Empty<string>();
+
+        string message = $"Teslim staj baslangicindan en az {MinimumLeadDays} takvim gunu once yapilmali.";
+        if (internshipStartDate.Date >= DateTime.MinValue.AddDays(MinimumLeadDays))
+            message += $" Son teslim tarihi: {GetLatestSubmissionDate(internshipStartDate).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)}.";
+        return new[] { message };
     }
 
     // Ogretim yili 2026-2027 biciminde ve ardisik iki yildan olusmali.
