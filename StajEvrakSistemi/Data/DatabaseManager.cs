@@ -77,6 +77,18 @@ public class DatabaseManager
         EnsureColumn(connection, transaction, "Internships", "CreatedAt", "TEXT");
         EnsureColumn(connection, transaction, "Internships", "CompanyIban", "TEXT");
         EnsureColumn(connection, transaction, "Internships", "CompanyTaxNumber", "TEXT");
+        EnsureColumn(connection, transaction, "Internships", "ResponsibleEngineerName", "TEXT");
+        EnsureColumn(connection, transaction, "Internships", "ResponsibleEngineerTitle", "TEXT");
+        EnsureColumn(connection, transaction, "Internships", "EngineerRegistrationNumber", "TEXT");
+        EnsureColumn(connection, transaction, "Internships", "EngineerGraduationDepartment", "TEXT");
+
+        EnsureColumn(connection, transaction, "Documents", "StudentApprovalPresent", "INTEGER CHECK (StudentApprovalPresent IN (0, 1))");
+        EnsureColumn(connection, transaction, "Documents", "AdvisorApprovalPresent", "INTEGER CHECK (AdvisorApprovalPresent IN (0, 1))");
+        EnsureColumn(connection, transaction, "Documents", "EmployerFieldsComplete", "INTEGER CHECK (EmployerFieldsComplete IN (0, 1))");
+        EnsureColumn(connection, transaction, "Documents", "EmployerStampPresent", "INTEGER CHECK (EmployerStampPresent IN (0, 1))");
+        EnsureColumn(connection, transaction, "Documents", "EmployerSignaturePresent", "INTEGER CHECK (EmployerSignaturePresent IN (0, 1))");
+        EnsureColumn(connection, transaction, "Documents", "ApprovalReviewedByUserId", "INTEGER REFERENCES Users(Id) ON DELETE SET NULL");
+        EnsureColumn(connection, transaction, "Documents", "ApprovalReviewedAt", "TEXT");
 
         transaction.Commit();
     }
@@ -170,6 +182,10 @@ public class DatabaseManager
             Fax             TEXT,
             WorkDays        TEXT,
             EngineerCount   INTEGER NOT NULL DEFAULT 0,
+            ResponsibleEngineerName TEXT,
+            ResponsibleEngineerTitle TEXT,
+            EngineerRegistrationNumber TEXT,
+            EngineerGraduationDepartment TEXT,
             CreatedAt       TEXT,
             FOREIGN KEY (StudentId) REFERENCES Users(Id) ON DELETE CASCADE
         );
@@ -185,7 +201,15 @@ public class DatabaseManager
             IsApproved      INTEGER NOT NULL DEFAULT 0 CHECK (IsApproved IN (0, 1)),
             RejectionReason TEXT,
             UploadedAt      TEXT    NOT NULL DEFAULT (datetime('now')),
-            FOREIGN KEY (InternshipId) REFERENCES Internships(Id) ON DELETE CASCADE
+            StudentApprovalPresent INTEGER CHECK (StudentApprovalPresent IN (0, 1)),
+            AdvisorApprovalPresent INTEGER CHECK (AdvisorApprovalPresent IN (0, 1)),
+            EmployerFieldsComplete INTEGER CHECK (EmployerFieldsComplete IN (0, 1)),
+            EmployerStampPresent INTEGER CHECK (EmployerStampPresent IN (0, 1)),
+            EmployerSignaturePresent INTEGER CHECK (EmployerSignaturePresent IN (0, 1)),
+            ApprovalReviewedByUserId INTEGER,
+            ApprovalReviewedAt TEXT,
+            FOREIGN KEY (InternshipId) REFERENCES Internships(Id) ON DELETE CASCADE,
+            FOREIGN KEY (ApprovalReviewedByUserId) REFERENCES Users(Id) ON DELETE SET NULL
         );
         """;
 

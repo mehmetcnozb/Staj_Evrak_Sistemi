@@ -125,7 +125,7 @@ public class StatusWorkflowEngine
 
     /// <summary>
     /// Başvurunun statüsünü değiştirir ve geçişi kaydeder.
-    /// Kontrol sırası: giriş (401) -> rol izni ve sahiplik (403) -> akış kuralı -> gerekçe -> Ek-16 doğrulaması (Onaylandı için).
+    /// Kontrol sirasi: giris -> yetki ve sahiplik -> akis kurali -> gerekce -> onay ve tamamlanma kontrolleri.
     /// </summary>
     /// <exception cref="LoginRequiredException">Kullanıcı yok.</exception>
     /// <exception cref="ForbiddenAccessException">Rol ya da sahiplik bu geçişe yetmiyor.</exception>
@@ -160,9 +160,9 @@ public class StatusWorkflowEngine
         if (RequiresNote(newStatus) && string.IsNullOrWhiteSpace(note))
             throw new ArgumentException($"'{GetDisplayName(newStatus)}' için gerekçe yazılmalıdır.", nameof(note));
 
-        if (newStatus == ApplicationStatus.Approved && !application.Ek16Verified)
-            throw new InvalidOperationException(
-                "Başvuru Ek-16 listesiyle doğrulanmadan 'Onaylandı' statüsüne alınamaz.");
+        int? approvedDocumentId = null;
+        if (newStatus is ApplicationStatus.Approved or ApplicationStatus.Completed)
+            approvedDocumentId = EnsureReadyForApproval(connection, transaction, applicationId, application);
 
         DateTime now = _utcNow();
 
@@ -177,6 +177,15 @@ public class StatusWorkflowEngine
 
             if (update.ExecuteNonQuery() == 0)
                 throw new InvalidOperationException("Başvurunun statüsü bu sırada değişti; lütfen yeniden deneyin.");
+        }
+
+        if (approvedDocumentId.HasValue)
+        {
+            using var approveDocument = connection.CreateCommand();
+            approveDocument.Transaction = transaction;
+            approveDocument.CommandText = "UPDATE Documents SET IsApproved = 1, RejectionReason = NULL WHERE Id = $id;";
+            approveDocument.Parameters.AddWithValue("$id", approvedDocumentId.Value);
+            approveDocument.ExecuteNonQuery();
         }
 
         var log = new StatusTransitionLog(applicationId, application.Status, newStatus, currentUser.Id, now, note);
@@ -289,11 +298,58 @@ public class StatusWorkflowEngine
     private static void EnsureUserInDatabase(SqliteConnection connection, SqliteTransaction transaction, User user) =>
         UserGuard.EnsureUserInDatabase(connection, transaction, user);
 
+    private static int EnsureReadyForApproval(
+        SqliteConnection connection, SqliteTransaction transaction, int applicationId, ApplicationInfo application)
+    {
+        if (!application.Ek16Verified)
+            throw new InvalidOperationException("Basvuru Ek-16 veri setiyle yeniden dogrulanmali.");
+
+        var engineerDetails = new InternshipApplication
+        {
+            EngineerCount = application.EngineerCount,
+            ResponsibleEngineerName = application.ResponsibleEngineerName,
+            ResponsibleEngineerTitle = application.ResponsibleEngineerTitle,
+            EngineerRegistrationNumber = application.EngineerRegistrationNumber,
+            EngineerGraduationDepartment = application.EngineerGraduationDepartment
+        };
+        var errors = EngineerApprovalValidator.GetEngineerErrors(engineerDetails).ToList();
+
+        using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = """
+            SELECT Id, FilePath, StudentApprovalPresent, AdvisorApprovalPresent, EmployerFieldsComplete,
+                   EmployerStampPresent, EmployerSignaturePresent, ApprovalReviewedByUserId, ApprovalReviewedAt
+            FROM Documents WHERE InternshipId = $id AND DocumentType = 'Ek16' ORDER BY Id DESC LIMIT 1;
+            """;
+        command.Parameters.AddWithValue("$id", applicationId);
+        using var reader = command.ExecuteReader();
+        if (!reader.Read())
+            throw new InvalidOperationException("Onay icin yuklenmis bir Ek-16 belgesi gerekli.");
+
+        int documentId = reader.GetInt32(0);
+        bool? Flag(int index) => reader.IsDBNull(index) ? null : reader.GetInt32(index) == 1;
+        var fields = new DocumentApprovalFields(Flag(2), Flag(3), Flag(4), Flag(5), Flag(6));
+        errors.AddRange(EngineerApprovalValidator.GetDocumentApprovalErrors(fields));
+        if (reader.IsDBNull(7) || reader.IsDBNull(8))
+            errors.Add("Son yuklenen belge icin yonetici incelemesi kaydedilmeli.");
+
+        var document = new Ek16Document(applicationId, reader.GetString(1));
+        errors.AddRange(document.GetValidationErrors());
+        if (errors.Count > 0)
+            throw new InvalidOperationException(string.Join(" ", errors));
+
+        return documentId;
+    }
+
     private static ApplicationInfo? LoadApplication(SqliteConnection connection, SqliteTransaction transaction, int applicationId)
     {
         using var command = connection.CreateCommand();
         command.Transaction = transaction;
-        command.CommandText = "SELECT Status, StudentId, Ek16Verified FROM Internships WHERE Id = $id;";
+        command.CommandText = """
+            SELECT Status, StudentId, Ek16Verified, EngineerCount, ResponsibleEngineerName, ResponsibleEngineerTitle,
+                   EngineerRegistrationNumber, EngineerGraduationDepartment
+            FROM Internships WHERE Id = $id;
+            """;
         command.Parameters.AddWithValue("$id", applicationId);
 
         using var reader = command.ExecuteReader();
@@ -303,8 +359,12 @@ public class StatusWorkflowEngine
         if (!Enum.TryParse<ApplicationStatus>(reader.GetString(0), out var status))
             throw new InvalidOperationException($"#{applicationId} başvurusunda bilinmeyen statü: {reader.GetString(0)}");
 
-        return new ApplicationInfo(status, reader.GetInt32(1), reader.GetInt32(2) == 1);
+        string? Str(int index) => reader.IsDBNull(index) ? null : reader.GetString(index);
+        return new ApplicationInfo(status, reader.GetInt32(1), reader.GetInt32(2) == 1, reader.GetInt32(3),
+            Str(4), Str(5), Str(6), Str(7));
     }
 
-    private sealed record ApplicationInfo(ApplicationStatus Status, int StudentId, bool Ek16Verified);
+    private sealed record ApplicationInfo(ApplicationStatus Status, int StudentId, bool Ek16Verified, int EngineerCount,
+        string? ResponsibleEngineerName, string? ResponsibleEngineerTitle, string? EngineerRegistrationNumber,
+        string? EngineerGraduationDepartment);
 }

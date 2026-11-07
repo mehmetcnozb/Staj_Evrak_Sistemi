@@ -12,6 +12,12 @@ public class Ek16Document : BaseDocument
 
     private static readonly string[] Formats = { "doc", "docx", "pdf", "jpg", "jpeg", "png" };
 
+    public DocumentApprovalFields ApprovalFields { get; internal set; } = new();
+
+    public int? ApprovalReviewedByUserId { get; internal set; }
+
+    public DateTime? ApprovalReviewedAt { get; internal set; }
+
     public Ek16Document(int internshipId, string filePath)
         : base(internshipId, filePath)
     {

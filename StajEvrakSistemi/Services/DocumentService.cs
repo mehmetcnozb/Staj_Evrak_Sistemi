@@ -61,7 +61,9 @@ public class DocumentService
         try
         {
             using var connection = _database.GetConnection();
+            using var transaction = connection.BeginTransaction();
             using var command = connection.CreateCommand();
+            command.Transaction = transaction;
             command.CommandText = """
                 INSERT INTO Documents (InternshipId, DocumentType, FilePath, FileFormat, IsApproved, UploadedAt)
                 VALUES ($internshipId, $type, $path, $format, 0, $uploadedAt);
@@ -73,6 +75,8 @@ public class DocumentService
             command.Parameters.AddWithValue("$format", document.FileFormat);
             command.Parameters.AddWithValue("$uploadedAt", document.UploadedAt.ToString("o", CultureInfo.InvariantCulture));
             document.Id = Convert.ToInt32(command.ExecuteScalar(), CultureInfo.InvariantCulture);
+            InvalidateVerification(connection, transaction, internshipId);
+            transaction.Commit();
         }
         catch
         {
@@ -104,7 +108,9 @@ public class DocumentService
 
         using var command = connection.CreateCommand();
         command.CommandText = """
-            SELECT Id, FilePath, UploadedAt, IsApproved, RejectionReason
+            SELECT Id, FilePath, UploadedAt, IsApproved, RejectionReason,
+                   StudentApprovalPresent, AdvisorApprovalPresent, EmployerFieldsComplete,
+                   EmployerStampPresent, EmployerSignaturePresent, ApprovalReviewedByUserId, ApprovalReviewedAt
             FROM Documents WHERE InternshipId = $id ORDER BY Id;
             """;
         command.Parameters.AddWithValue("$id", internshipId);
@@ -113,16 +119,75 @@ public class DocumentService
         using var reader = command.ExecuteReader();
         while (reader.Read())
         {
+            bool? Flag(int index) => reader.IsDBNull(index) ? null : reader.GetInt32(index) == 1;
             var document = new Ek16Document(internshipId, reader.GetString(1))
             {
                 Id = reader.GetInt32(0),
                 UploadedAt = DateTime.Parse(reader.GetString(2), CultureInfo.InvariantCulture,
-                    DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal)
+                    DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal),
+                ApprovalFields = new DocumentApprovalFields(Flag(5), Flag(6), Flag(7), Flag(8), Flag(9)),
+                ApprovalReviewedByUserId = reader.IsDBNull(10) ? null : reader.GetInt32(10),
+                ApprovalReviewedAt = reader.IsDBNull(11) ? null : DateTime.Parse(reader.GetString(11),
+                    CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal)
             };
             document.RestoreState(reader.GetInt32(3) == 1, reader.IsDBNull(4) ? null : reader.GetString(4));
             documents.Add(document);
         }
         return documents;
+    }
+
+    // Belge inceleme sonucu yalnizca yonetici tarafindan ve son yuklenen Ek-16 icin kaydedilir.
+    public IReadOnlyList<string> RecordApprovalFields(User admin, int documentId, DocumentApprovalFields fields)
+    {
+        if (admin is null)
+            throw new LoginRequiredException("Belge inceleme sonucu icin giris yapmalisiniz.");
+        ArgumentNullException.ThrowIfNull(fields);
+        if (admin.Role != UserRole.Admin || !admin.HasPermission(Permission.ReviewDocument))
+            throw new ForbiddenAccessException("Belge inceleme sonucunu yalnizca yonetici kaydedebilir.");
+
+        using var connection = _database.GetConnection();
+        using var transaction = connection.BeginTransaction();
+        UserGuard.EnsureUserInDatabase(connection, transaction, admin);
+
+        using var latest = connection.CreateCommand();
+        latest.Transaction = transaction;
+        latest.CommandText = """
+            SELECT MAX(Id) FROM Documents
+            WHERE DocumentType = 'Ek16' AND InternshipId =
+                (SELECT InternshipId FROM Documents WHERE Id = $id AND DocumentType = 'Ek16');
+            """;
+        latest.Parameters.AddWithValue("$id", documentId);
+        object? latestId = latest.ExecuteScalar();
+        if (latestId is null or DBNull)
+            throw new KeyNotFoundException("Incelenecek Ek-16 belgesi bulunamadi.");
+        if (Convert.ToInt32(latestId, CultureInfo.InvariantCulture) != documentId)
+            throw new InvalidOperationException("Inceleme sonucu son yuklenen Ek-16 belgesine ait olmali.");
+
+        var errors = EngineerApprovalValidator.GetDocumentApprovalErrors(fields);
+        static object DbFlag(bool? value) => value.HasValue ? (value.Value ? 1 : 0) : DBNull.Value;
+        using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = """
+            UPDATE Documents SET StudentApprovalPresent = $student, AdvisorApprovalPresent = $advisor,
+                EmployerFieldsComplete = $employer, EmployerStampPresent = $stamp, EmployerSignaturePresent = $signature,
+                ApprovalReviewedByUserId = $reviewer, ApprovalReviewedAt = $reviewedAt,
+                IsApproved = CASE WHEN $valid = 1 THEN IsApproved ELSE 0 END,
+                RejectionReason = $reason
+            WHERE Id = $id;
+            """;
+        command.Parameters.AddWithValue("$student", DbFlag(fields.StudentApprovalPresent));
+        command.Parameters.AddWithValue("$advisor", DbFlag(fields.AdvisorApprovalPresent));
+        command.Parameters.AddWithValue("$employer", DbFlag(fields.EmployerFieldsComplete));
+        command.Parameters.AddWithValue("$stamp", DbFlag(fields.EmployerStampPresent));
+        command.Parameters.AddWithValue("$signature", DbFlag(fields.EmployerSignaturePresent));
+        command.Parameters.AddWithValue("$reviewer", admin.Id);
+        command.Parameters.AddWithValue("$reviewedAt", _utcNow().ToString("o", CultureInfo.InvariantCulture));
+        command.Parameters.AddWithValue("$valid", errors.Count == 0 ? 1 : 0);
+        command.Parameters.AddWithValue("$reason", errors.Count == 0 ? DBNull.Value : string.Join(" ", errors));
+        command.Parameters.AddWithValue("$id", documentId);
+        command.ExecuteNonQuery();
+        transaction.Commit();
+        return errors;
     }
 
     /// <summary>
@@ -151,13 +216,27 @@ public class DocumentService
 
         _engine.ValidateDeleteOperation(internshipId, user);
 
+        using var transaction = connection.BeginTransaction();
         using var delete = connection.CreateCommand();
+        delete.Transaction = transaction;
         delete.CommandText = "DELETE FROM Documents WHERE Id = $id;";
         delete.Parameters.AddWithValue("$id", documentId);
         delete.ExecuteNonQuery();
+        InvalidateVerification(connection, transaction, internshipId);
+        transaction.Commit();
 
         try { File.Delete(filePath); }
         catch (IOException) { /* kayıt silindi; dosya başka işlem tarafından kullanılıyorsa yetim kalabilir */ }
+    }
+
+    // Belge degisince onceki karsilastirma sonucu yeniden kullanilamaz.
+    private static void InvalidateVerification(SqliteConnection connection, SqliteTransaction transaction, int internshipId)
+    {
+        using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = "UPDATE Internships SET Ek16Verified = 0, Ek16VerifiedAt = NULL WHERE Id = $id;";
+        command.Parameters.AddWithValue("$id", internshipId);
+        command.ExecuteNonQuery();
     }
 
     private ApplicationStatus GetStatus(int internshipId)

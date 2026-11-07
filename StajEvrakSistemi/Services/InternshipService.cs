@@ -17,7 +17,8 @@ public class InternshipService
 
     private const string SelectColumns = """
         Id, StudentId, AcademicYear, Semester, StartDate, EndDate, CompanyName, Department, Address, Phone, Email, Fax,
-        WorkDays, EngineerCount, GoogleFormUrl, Status, Ek16Verified, CreatedAt, NetWorkDays, CompanyIban, CompanyTaxNumber
+        WorkDays, EngineerCount, GoogleFormUrl, Status, Ek16Verified, CreatedAt, NetWorkDays, CompanyIban, CompanyTaxNumber,
+        ResponsibleEngineerName, ResponsibleEngineerTitle, EngineerRegistrationNumber, EngineerGraduationDepartment
         """;
 
     private readonly DatabaseManager _database;
@@ -59,10 +60,12 @@ public class InternshipService
         command.CommandText = """
             INSERT INTO Internships
                 (StudentId, AcademicYear, Semester, StartDate, EndDate, CompanyName, Department, Address, Phone, Email, Fax,
-                 WorkDays, EngineerCount, HasEngineer, GoogleFormUrl, Status, CreatedAt, NetWorkDays, CompanyIban, CompanyTaxNumber)
+                 WorkDays, EngineerCount, HasEngineer, GoogleFormUrl, Status, CreatedAt, NetWorkDays, CompanyIban, CompanyTaxNumber,
+                 ResponsibleEngineerName, ResponsibleEngineerTitle, EngineerRegistrationNumber, EngineerGraduationDepartment)
             VALUES
                 ($studentId, $year, $semester, $start, $end, $company, $department, $address, $phone, $email, $fax,
-                 $workDays, $engineers, $hasEngineer, $googleForm, 'Uploaded', $createdAt, $netWorkDays, $companyIban, $companyTaxNumber);
+                 $workDays, $engineers, $hasEngineer, $googleForm, 'Uploaded', $createdAt, $netWorkDays, $companyIban, $companyTaxNumber,
+                 $engineerName, $engineerTitle, $engineerRegistration, $engineerDepartment);
             SELECT last_insert_rowid();
             """;
         BindApplication(command, application, netWorkDays);
@@ -89,20 +92,33 @@ public class InternshipService
         decimal netWorkDays = CalculateNetWorkDays(application);
 
         using var connection = _database.GetConnection();
+        using var transaction = connection.BeginTransaction();
         using var command = connection.CreateCommand();
+        command.Transaction = transaction;
         command.CommandText = """
             UPDATE Internships SET
                 AcademicYear = $year, Semester = $semester, StartDate = $start, EndDate = $end, CompanyName = $company,
                 Department = $department, Address = $address, Phone = $phone, Email = $email, Fax = $fax,
                 WorkDays = $workDays, EngineerCount = $engineers, HasEngineer = $hasEngineer, GoogleFormUrl = $googleForm,
                 NetWorkDays = $netWorkDays, CompanyIban = $companyIban, CompanyTaxNumber = $companyTaxNumber,
+                ResponsibleEngineerName = $engineerName, ResponsibleEngineerTitle = $engineerTitle,
+                EngineerRegistrationNumber = $engineerRegistration, EngineerGraduationDepartment = $engineerDepartment,
                 Ek16Verified = 0, Ek16VerifiedAt = NULL
             WHERE Id = $id;
             """;
         BindApplication(command, application, netWorkDays);
         command.Parameters.AddWithValue("$id", application.Id);
         command.ExecuteNonQuery();
+        using (var resetApproval = connection.CreateCommand())
+        {
+            resetApproval.Transaction = transaction;
+            resetApproval.CommandText = "UPDATE Documents SET IsApproved = 0, RejectionReason = NULL WHERE InternshipId = $id;";
+            resetApproval.Parameters.AddWithValue("$id", application.Id);
+            resetApproval.ExecuteNonQuery();
+        }
+        transaction.Commit();
         application.NetWorkDays = netWorkDays;
+        application.Ek16Verified = false;
     }
 
     /// <summary>
@@ -229,6 +245,10 @@ public class InternshipService
         command.Parameters.AddWithValue("$googleForm", Db(a.GoogleFormUrl));
         command.Parameters.AddWithValue("$companyIban", Db(FormatValidator.NormalizeIban(a.CompanyIban)));
         command.Parameters.AddWithValue("$companyTaxNumber", Db(a.CompanyTaxNumber));
+        command.Parameters.AddWithValue("$engineerName", Db(a.ResponsibleEngineerName));
+        command.Parameters.AddWithValue("$engineerTitle", Db(a.ResponsibleEngineerTitle));
+        command.Parameters.AddWithValue("$engineerRegistration", Db(a.EngineerRegistrationNumber));
+        command.Parameters.AddWithValue("$engineerDepartment", Db(a.EngineerGraduationDepartment));
         // Sonuc tam veya yarim gun oldugu icin SQLite REAL alaninda kayipsiz tutulur.
         command.Parameters.AddWithValue("$netWorkDays", (double)netWorkDays);
     }
@@ -274,7 +294,11 @@ public class InternshipService
                     : null,
                 NetWorkDays = reader.GetDecimal(18),
                 CompanyIban = Str(19),
-                CompanyTaxNumber = Str(20)
+                CompanyTaxNumber = Str(20),
+                ResponsibleEngineerName = Str(21),
+                ResponsibleEngineerTitle = Str(22),
+                EngineerRegistrationNumber = Str(23),
+                EngineerGraduationDepartment = Str(24)
             });
         }
         return result;

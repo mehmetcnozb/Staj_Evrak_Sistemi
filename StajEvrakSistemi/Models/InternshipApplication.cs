@@ -58,6 +58,14 @@ public class InternshipApplication
 
     public int EngineerCount { get; set; }
 
+    public string? ResponsibleEngineerName { get; set; }
+
+    public string? ResponsibleEngineerTitle { get; set; }
+
+    public string? EngineerRegistrationNumber { get; set; }
+
+    public string? EngineerGraduationDepartment { get; set; }
+
     public string? GoogleFormUrl { get; set; }
 
     public ApplicationStatus Status { get; internal set; } = ApplicationStatus.Uploaded;
