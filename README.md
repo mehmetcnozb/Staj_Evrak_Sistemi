@@ -17,7 +17,7 @@ Mevcut ozellikler:
 *muhendis ve onay kontrolu - en az 1 muhendis olmasi kontrol ediliyor. sayi 5'in altindaysa mezuniyet bolumu icin uyari bilgisi hazirlaniyor. adminin son belge icin kaydettigi onay, imza ve kase incelemesi denetleniyor.
 *durum takibi              - degisiklik gecmisi tutuyor. tamamlanan basvurularda ogrencinin degistirmesi engelleniyor. admin degistiriyor.
 *tarih kontrolleri         - ogretim yili, yariyil ve staj tarih araligi kayit ve guncellemede kontrol ediliyor. belge tesliminde en az 30 takvim gunu araniyor. onay ve tamamlanmada belge teslim tarihi tekrar denetleniyor.
-*staj gunu hesabi          - secilen haftalik gunler ve 2026-2027 resmi tatillerine gore net staj gunu hesaplaniyor. kayit ve guncellemede sonuc saklaniyor. Ek-16 da belirtilen gun sayisiyla eslesme metodu da bulunuyor.
+*staj gunu hesabi          - secilen haftalik gunler ve 2026-2027 resmi tatillerine gore net staj gunu hesaplaniyor. belgedeki baslangic ve bitis form ile karsilastiriliyor. belgede ayri gun sayisi veya calisma gunleri varsa onlar da kontrol ediliyor.
 ---------------------------------------------------------------------------------------------
 Projede kullanilan teknolojiler:
 C#                     - uygulamanin yazildigi temel programlama dili
@@ -48,6 +48,7 @@ Staj_Evrak_Sistemi/
             UserRole.cs (Aktif olan kullanici rollerini tanimlar.)
             InternshipDateValidator.cs (ogretim yili, yariyil ve staj tarih araligini kontrol eder. belgenin teslim tarihi icin 30 gun kuralini ve son teslim tarihini hesaplar. UTC zamanini Turkiye tarihine cevirir.)
             InternshipDayCalculator.cs (secilen haftalik gunler ve tatil listesiyle net staj gununu hesaplar. Ek-16 da belirtilen gun sayisiyla eslesmeyi kontrol eder.)
+            InternshipDocumentValidator.cs (belgedeki staj tarihlerini form ile karsilastirir. iki tarih araligindan net gunu yeniden hesaplar. belgede ayri gun sayisi veya haftalik gun listesi varsa onlari da kontrol eder.)
 
         
         Data/
@@ -60,12 +61,13 @@ Staj_Evrak_Sistemi/
             Student.cs (ogrenciyi temsil eder. user dan turetilir. ogrenci yetkilerini tanimlar. yabanci ogrenci icin isForeign bilgisi verilebilir.)
             Admin.cs (admini temsil eder. user dan turetilmistir. admin yetkilerini tanimlar)
             BaseDocument.cs (Belgelerin ortak temel sinifidir. dosya yolu, yuklenme zamani, onay/ret bilgileri ve ortak dosya kontrollerini icerir. docx dosyasinda Word paket girdileri de kontrol edilir.)
-            Ek16Document.cs (Ek-16 belgesini temsil eder. dosya ve onay incelemesi bilgilerini tasir. ogrenci alanlarinin bu belge icin dogrulanip dogrulanmadigini ve karsilastirma zamanini da saklar.)
+            Ek16Document.cs (Ek-16 belgesini temsil eder. dosya ve onay incelemesi bilgilerini tasir. ogrenci ve staj alanlarinin bu belge icin dogrulanip dogrulanmadigini ve karsilastirma zamanlarini da saklar.)
             DocumentApprovalFields.cs (ogrenci ve danisman onay alanlariyla isveren bolumu, kase ve imza inceleme sonuclarini tasir. null henuz incelenmedi demek.)
             InternshipApplication.cs (ogrencinin staj basvurusunu temsil eder. tarihler, yariyil, isyeri, bolum, iletisim bilgileri, calisma gunleri, net staj gunu, muhendis sayisi, mezuniyet bolumu ve basvuru durumunu tasir.)
             OfficialStudentRecord.cs (Adminin yukledigi referans veri setindeki bir ogrenci kaydini temsil eder. ogrenci, kimlik, uyruk, ogrenim ve iletisim bilgilerini iserir.InternshipApplication.cs ile karsilastirilirken kullanilir. )
-            Ek16ComparisonResult.cs (veri seti karsilastirmasinin sonucunu tasir. belge dogrulamasinda ilgili belge numarasini da icerir. kimlik, uyruk ve alan uyusmazliklarini listeler.)
-            ScannedDocumentComparisonResult.cs (belgedeki bes ogrenci alaninin form ile karsilastirma sonucunu tasir. IsMatched yalniz bu alanlar icindir, belgenin tum kurallari gectigini soylemez. ScannedDocumentFields modeli de bu dosyadadir.)
+            Ek16ComparisonResult.cs (veri seti karsilastirmasinin sonucunu tasir. belge dogrulamasinda ilgili belge numarasini da icerir. kimlik, uyruk, tarih ve gun uyusmazliklarini listeler. belge karsilastirmasinda hesaplanan net gunleri de tasir.)
+            ScannedDocumentComparisonResult.cs (belgedeki ogrenci ve staj alanlarinin form ile karsilastirma sonucunu tasir. IsMatched belgenin tum kurallari gectigini soylemez. ScannedDocumentFields modeli de bu dosyadadir.)
+            InternshipComparisonResult.cs (staj tarih ve gun karsilastirmasinin hatalarini, formdan ve belgeden hesaplanan net gunleri tasir.)
             StatusTransitionLog.cs (Basvurunun durum degisikligini temsil eder. onceki/yeni durum, islemi yapan kullanici, tarih ve gerekceyi icerir.)
             FailedLoginLog.cs (Basarisiz giris denemesini temsil eder. Kullanici bilgisi, kullanilan giris bilgisi, basarisizlik nedeni ve zamani icerir.)
             AcademicCalendar.cs (ogretim yilini ve tarih sinirlarini tasir. sinirlar verilmezse uygulama tercihi olarak 1 Eylul - 31 Agustos araligi kullanilir.)
@@ -79,13 +81,13 @@ Staj_Evrak_Sistemi/
             DatasetImportResult.cs	(Veri seti aktariminin sonuclarini tasir: eklenen, tekrarlanan ve hatali kayitlar gibi.)
             DocumentService.cs	(Ek-16 yukleme, listeleme ve silme islemlerini yapar. her yuklemede staj tarihlerini ve 30 gun suresini kontrol eder, teslim zamanini sistem saatinden kaydeder. adminin son belge incelemesini de saklar. belge yuklenince veya silinince eski karsilastirma sonucu sifirlanir.)
             DocumentValidationException.cs	(Dosya kabul edilmediginde, ornegin formati veya boyutu uygun degilse, hata nedenlerini tasir.)
-            Ek16MatcherService.cs	(kayitli kullanicinin yetkisini ve basvuru sahipligini kontrol eder. referansi basvuru sahibine gore bulur. son belgenin alanlari form ve veri setiyle uyusursa belgeye bagli dogrulama kaydeder.)
-            InternshipService.cs	(Basvuru olusturma, guncelleme, silme ve listeleme islemlerini yapar. format, ogretim yili ve tarih araligini kontrol eder. net staj gununu hesaplar ve kaydeder. guncellemede eski karsilastirma sonucu, belgeye ait ogrenci dogrulamasi ve belge onayi sifirlanir.)
+            Ek16MatcherService.cs	(kayitli kullanicinin yetkisini ve basvuru sahipligini kontrol eder. referansi basvuru sahibine gore bulur. son belgenin ogrenci alanlarini form ve veri setiyle karsilastirir. staj tarihlerini ve gun bilgilerini de kontrol eder. tumu uyusursa belgeye bagli dogrulama kaydeder ve hesaplanan net gunu gunceller.)
+            InternshipService.cs	(Basvuru olusturma, guncelleme, silme ve listeleme islemlerini yapar. format, ogretim yili ve tarih araligini kontrol eder. net staj gununu hesaplar ve kaydeder. guncellemede eski karsilastirma sonucu, belgeye ait ogrenci/staj dogrulamasi ve belge onayi sifirlanir.)
             LoginResult.cs	(Giris isleminin sonucunu tasir: basarili giris, yanlis bilgiler veya kilitli hesap.)
             PasswordHasher.cs	(sifreleri rastgele salt kullanarak hash ler; giriste verilen sifreyi kayitli hash ile dogrular.)
             SessionManager.cs	(Kullanici oturumlarini olusturur, token ve sure kontrolu yapar, cikista oturumu kapatir.)
             UserSession.cs	(Bir oturumun kullanici numarasi, rolu, token i, baslangic ve bitis zamanini tasir.)
-            StatusWorkflowEngine.cs	(Basvuru durum gecislerini, izinleri ve degisiklik gecmisini yonetir. onaylanirken ve tamamlanirken veri seti dogrulamasi, muhendis bilgileri, son belge, belgeye kaydedilen ogrenci dogrulamasi, onay alanlari ve kayitli tarihler yeniden kontrol edilir.)
+            StatusWorkflowEngine.cs	(Basvuru durum gecislerini, izinleri ve degisiklik gecmisini yonetir. onaylanirken ve tamamlanirken veri seti dogrulamasi, muhendis bilgileri, son belge, belgeye kaydedilen ogrenci ve staj dogrulamasi, onay alanlari ve kayitli tarihler yeniden kontrol edilir.)
             UserGuard.cs	(islem yapan kullanicinin veritabaninda bulundugunu ve rolunun kayitli rolle eslestigini kontrol eder.)
             
         
@@ -96,13 +98,11 @@ Staj_Evrak_Sistemi/
 Gelistirme durumu
 
 Temel veritabani, kullanici islemleri, yetkilendirme, basvuru yonetimi, veri seti aktarimi ve belge yukleme servisleri gelistirildi. Ogretim yili, yariyil ve staj tarih araligi kayit ve guncellemede denetleniyor. belge teslimi icin en az 30 takvim gunu araniyor. onay ve tamamlanmada son belgenin teslim tarihi kontrol ediliyor.
-Net staj gunu secilen haftalik gunler ve resmi tatillerle hesaplaniyor. kimlik ve format kontrolleri de eklendi. muhendis sayisi 5'in altindaysa bolum bilgisi icin uyari hazirlaniyor. belge onay alanlari admin incelemesiyle kaydediliyor. Son belgedeki bes ogrenci alani basvuru sahibi ve veri setiyle birlikte kontrol ediliyor. karsilastirma belgenin numarasina ve zamana bagli kaydediliyor. Web arayuzu ve otomatik belge okuma henuz hazir degil.
+Net staj gunu secilen haftalik gunler ve resmi tatillerle hesaplaniyor. kimlik ve format kontrolleri de eklendi. muhendis sayisi 5'in altindaysa bolum bilgisi icin uyari hazirlaniyor. belge onay alanlari admin incelemesiyle kaydediliyor. Son belgedeki bes ogrenci alani basvuru sahibi ve veri setiyle birlikte kontrol ediliyor. belgedeki staj tarihleri ve gun bilgileri de karsilastirmaya baglandi. karsilastirma belgenin numarasina ve zamana bagli kaydediliyor. Web arayuzu ve otomatik belge okuma henuz hazir degil.
 ---------------------------------------------------------------------------------------------
 Yapilacak isler
 
 Resmi tatil takviminin diger yillar icin genisletilmesi.
-
-Ek-16 dan okunan staj tarihleri ve gun bilgilerinin hesaplanan degerlerle karsilastirmaya baglanmasi.
 
 Belgeden okunan diger ogrenci ve iletisim alanlarinin da karsilastirmaya ve ortak onay akisina baglanmasi.
 
@@ -122,7 +122,7 @@ Raporlama ekranlarinin, diyagramlarin ve otomatik testlerin hazirlanmasi.
 
 Bilinen sorunlar
 
-Staj tarihleri, gun bilgileri ve bes alan disindaki ogrenci bilgilerinin belge-form-veri seti karsilastirmasi henuz tamamlanmadi.
+Bes alan disindaki ogrenci ve iletisim bilgilerinin belge-form-veri seti karsilastirmasi henuz tamamlanmadi.
 
 Eski basvurularin onay akisinda adres, telefon ve e-posta dahil tum zorunlu alanlarin yeniden kontrolu tamamlanmali.
 
@@ -150,7 +150,11 @@ Cumartesi ve pazar da dahil, yalnizca calisma gunu olarak secilen haftalik gunle
 2026 ve 2027 resmi tatilleri tarih araligina gore otomatik aliniyor. tam gun tatil 1, yarim gun tatil 0.5 olarak tutuluyor.
 Cuma aksam biten tatilin ertesi cumartesisi de tatil sayiliyor. ayni tarihe iki bayram denk gelirse bir kez dusuluyor.
 Tatil zaten calisilmayan bir gune denk gelirse tekrar dusulmuyor.
-Hesaplanan sonuc ile Ek-16 da belirtilen gun sayisi karsilastirilabiliyor. gun sayisini su an metoda vermek gerekiyor, belgeden otomatik okunmuyor.
+Belgedeki baslangic ve bitis tarihleri form ile karsilastiriliyor. iki tarih araligi icin net gun yeniden hesaplaniyor. toplam gun ayni olsa bile farkli tarihler uyusmazlik olarak donuyor.
+Baslangic veya bitis okunamamissa dogrulama verilmiyor. belgede ayri gun sayisi varsa hesaplanan sonuc ile karsilastiriliyor. ayri haftalik gun listesi varsa formdaki secimle ayni olmali.
+Belgede ayri gun sayisi veya haftalik gun listesi yoksa bunlar ek zorunlu alan sayilmiyor. belge tarihleri icin formda secilen haftalik gunler kullaniliyor.
+Sonuc formdan ve belgeden hesaplanan gunleri, hangi alanin uyusmadigini birlikte tasiyor. on kontrol sonuc kaydetmiyor.
+Son belge icin ogrenci ve staj kontrolleri birlikte basariliysa dogrulama kaydediliyor. daha once saklanmis net gun yerine yeniden hesaplanan sonuc kullaniliyor. net gun kaydi da bu sonuc ile guncelleniyor.
 Net gun hesabi basvuru olusturma ve guncelleme islemlerine baglandi. tarih veya calisma gunu degisince yeniden hesaplaniyor. yarim gunler de veritabaninda saklaniyor.
 Tatil takvimi su an sadece 2026 ve 2027 icin hazir. baska yil girilirse uyari veriliyor.
 Kaynaklar:
@@ -170,14 +174,14 @@ Bu kontroller yalnizca bicim ve matematiksel kontrol yapiyor. numaranin gercek b
 Belgedeki kimlik numarasi kayitli ogrencinin IsForeign secimine gore kontrol ediliyor. veri setindeki T.C./yabanci uyruk secimiyle de uyumlu olmali.
 Karsilastirma metotlari islem yapan kayitli kullaniciyi aliyor. ogrenci kendi basvurusuna, admin tum basvurulara erisebiliyor. toplu kontrol yalnizca admin icin.
 CompareWithEk16 ve CompareAllApplicationsWithEk16 yalnizca basvuru-veri seti kontrolu yapiyor. basarili olmalarinin kendisi belge dogrulamasi vermiyor. uyusmazlik varsa eski dogrulama temizleniyor.
-CompareFormWithScannedDocument bes ogrenci alanini on kontrol icin karsilastiriyor. sonuc kaydedilmiyor ve tek basina onaya izin vermiyor.
+CompareFormWithScannedDocument ogrenci ve staj alanlarini on kontrol icin karsilastiriyor. sonuc kaydedilmiyor ve tek basina onaya izin vermiyor.
 CompareScannedDocumentWithDataset(kullanici, basvuruId, belgeId, okunmusAlanlar) son yuklenen belgeyi, basvuru sahibini ve referans kaydi birlikte karsilastiriyor.
 Belgedeki bilgilerle veri setinde baska bir ogrenci aranmiyor. referans kayit kayitli basvuru sahibine gore seciliyor.
-Sonuc basariliysa basvuruya Ek16Verified, belgeye StudentFieldsVerified ve StudentFieldsVerifiedAt kaydediliyor. uygulama iki kaydi ayni islemde guncelliyor.
-Onay ve tamamlanma icin son belgenin bu dogrulamayi gecmesi de gerekiyor. eski bir belgenin sonucu yeni belge icin kullanilamiyor.
+Ogrenci ve staj kontrolleri birlikte basariliysa basvuruya Ek16Verified kaydediliyor. belgeye StudentFieldsVerified, InternshipFieldsVerified ve bu kontrollerin zamanlari kaydediliyor. uygulama iki kaydi ayni islemde guncelliyor.
+Onay ve tamamlanma icin son belgenin hem ogrenci hem staj dogrulamasini gecmesi ve zamanlarinin kayitli olmasi gerekiyor. eski bir belgenin sonucu yeni belge icin kullanilamiyor.
 Uyusmazlik varsa eski dogrulama ve belge onayi temizleniyor. basvuru guncellemesi ve yeni belge yukleme de yeniden karsilastirma gerektiriyor.
-Eski veritabanlari ilk acilista yeni sutunlari aliyor. onceki veri seti eslesmeleri yeni belge kontrolu yerine sayilmiyor ve yeniden karsilastirma gerekiyor. kullanici, basvuru ve belge kayitlari silinmiyor.
-Bu asamada bes alanin okunmus degerleri metoda veriliyor. gercek belge okuyucunun bu degerleri ilgili dosyadan alip dogru belge numarasiyla gondermesi gerekiyor. otomatik okuma henuz hazir degil.
+Eski veritabanlari ilk acilista yeni sutunlari aliyor. onceki veri seti eslesmeleri ve yalniz ogrenci alanlarini kapsayan kontroller yeni staj kontrolu yerine sayilmiyor. yeniden karsilastirma gerekiyor. kullanici, basvuru ve belge kayitlari silinmiyor.
+Bu asamada ogrenci ve staj alanlarinin okunmus degerleri metoda veriliyor. gercek belge okuyucunun bu degerleri ilgili dosyadan alip dogru belge numarasiyla gondermesi gerekiyor. otomatik okuma henuz hazir degil.
 ---------------------------------------------------------------------------------------------
 Format kontrolleri
 Ogrenci numarasinda mevcut harf ve rakam kurali korunuyor. bosluk ve ozel karakter kabul edilmiyor. sabit bir hane sayisi belirtilmedigi icin uzunluk zorunlulugu konulmadi.

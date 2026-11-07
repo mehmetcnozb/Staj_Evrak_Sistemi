@@ -323,7 +323,7 @@ public class StatusWorkflowEngine
         command.CommandText = """
             SELECT Id, FilePath, StudentApprovalPresent, AdvisorApprovalPresent, EmployerFieldsComplete,
                    EmployerStampPresent, EmployerSignaturePresent, ApprovalReviewedByUserId, ApprovalReviewedAt, UploadedAt,
-                   StudentFieldsVerified, StudentFieldsVerifiedAt
+                   StudentFieldsVerified, StudentFieldsVerifiedAt, InternshipFieldsVerified, InternshipFieldsVerifiedAt
             FROM Documents WHERE InternshipId = $id AND DocumentType = 'Ek16' ORDER BY Id DESC LIMIT 1;
             """;
         command.Parameters.AddWithValue("$id", applicationId);
@@ -334,6 +334,8 @@ public class StatusWorkflowEngine
         int documentId = reader.GetInt32(0);
         if (reader.GetInt32(10) != 1 || reader.IsDBNull(11))
             errors.Add("Son belgenin ogrenci bilgileri basvuru ve veri setiyle karsilastirilmali.");
+        if (reader.GetInt32(12) != 1 || reader.IsDBNull(13))
+            errors.Add("Son belgenin staj tarihleri ve gun bilgileri basvuruyla karsilastirilmali.");
         bool? Flag(int index) => reader.IsDBNull(index) ? null : reader.GetInt32(index) == 1;
         var fields = new DocumentApprovalFields(Flag(2), Flag(3), Flag(4), Flag(5), Flag(6));
         errors.AddRange(EngineerApprovalValidator.GetDocumentApprovalErrors(fields));

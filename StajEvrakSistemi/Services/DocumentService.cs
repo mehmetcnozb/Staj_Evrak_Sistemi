@@ -117,7 +117,7 @@ public class DocumentService
             SELECT Id, FilePath, UploadedAt, IsApproved, RejectionReason,
                    StudentApprovalPresent, AdvisorApprovalPresent, EmployerFieldsComplete,
                    EmployerStampPresent, EmployerSignaturePresent, ApprovalReviewedByUserId, ApprovalReviewedAt,
-                   StudentFieldsVerified, StudentFieldsVerifiedAt
+                   StudentFieldsVerified, StudentFieldsVerifiedAt, InternshipFieldsVerified, InternshipFieldsVerifiedAt
             FROM Documents WHERE InternshipId = $id ORDER BY Id;
             """;
         command.Parameters.AddWithValue("$id", internshipId);
@@ -138,6 +138,9 @@ public class DocumentService
                     CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal),
                 StudentFieldsVerified = reader.GetInt32(12) == 1,
                 StudentFieldsVerifiedAt = reader.IsDBNull(13) ? null : DateTime.Parse(reader.GetString(13),
+                    CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal),
+                InternshipFieldsVerified = reader.GetInt32(14) == 1,
+                InternshipFieldsVerifiedAt = reader.IsDBNull(15) ? null : DateTime.Parse(reader.GetString(15),
                     CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal)
             };
             document.RestoreState(reader.GetInt32(3) == 1, reader.IsDBNull(4) ? null : reader.GetString(4));

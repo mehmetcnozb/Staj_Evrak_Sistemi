@@ -87,9 +87,12 @@ public class DatabaseManager
         bool addedStudentVerification = EnsureColumn(connection, transaction, "Documents", "StudentFieldsVerified",
             "INTEGER NOT NULL DEFAULT 0 CHECK (StudentFieldsVerified IN (0, 1))");
         EnsureColumn(connection, transaction, "Documents", "StudentFieldsVerifiedAt", "TEXT");
-        if (addedStudentVerification)
+        bool addedInternshipVerification = EnsureColumn(connection, transaction, "Documents", "InternshipFieldsVerified",
+            "INTEGER NOT NULL DEFAULT 0 CHECK (InternshipFieldsVerified IN (0, 1))");
+        EnsureColumn(connection, transaction, "Documents", "InternshipFieldsVerifiedAt", "TEXT");
+        if (addedStudentVerification || addedInternshipVerification)
         {
-            // Eski veri seti eslesmeleri belgeye bagli dogrulama yerine gecmez.
+            // Onceki karsilastirmalar yeni belge alanlarinin kontrolunu kapsamaz.
             using var reset = connection.CreateCommand();
             reset.Transaction = transaction;
             reset.CommandText = "UPDATE Internships SET Ek16Verified = 0, Ek16VerifiedAt = NULL;";
@@ -212,6 +215,8 @@ public class DatabaseManager
             ApprovalReviewedAt TEXT,
             StudentFieldsVerified INTEGER NOT NULL DEFAULT 0 CHECK (StudentFieldsVerified IN (0, 1)),
             StudentFieldsVerifiedAt TEXT,
+            InternshipFieldsVerified INTEGER NOT NULL DEFAULT 0 CHECK (InternshipFieldsVerified IN (0, 1)),
+            InternshipFieldsVerifiedAt TEXT,
             FOREIGN KEY (InternshipId) REFERENCES Internships(Id) ON DELETE CASCADE,
             FOREIGN KEY (ApprovalReviewedByUserId) REFERENCES Users(Id) ON DELETE SET NULL
         );

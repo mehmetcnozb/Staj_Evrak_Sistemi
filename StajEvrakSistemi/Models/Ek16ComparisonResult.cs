@@ -11,7 +11,11 @@ public enum Ek16Field
     FullName,
     Department,
     AcademicYear,
-    Nationality
+    Nationality,
+    StartDate,
+    EndDate,
+    WorkDays,
+    NetWorkDays
 }
 
 /// <summary>
@@ -35,7 +39,9 @@ public class Ek16ComparisonResult
         OfficialStudentRecord? matchedRecord,
         IReadOnlyList<Ek16Discrepancy> discrepancies,
         DateTime comparedAt,
-        int? documentId = null)
+        int? documentId = null,
+        decimal? calculatedWorkDays = null,
+        decimal? documentCalculatedWorkDays = null)
     {
         ApplicationId = applicationId;
         StudentId = studentId;
@@ -45,11 +51,17 @@ public class Ek16ComparisonResult
         Discrepancies = discrepancies;
         ComparedAt = comparedAt;
         DocumentId = documentId;
+        CalculatedWorkDays = calculatedWorkDays;
+        DocumentCalculatedWorkDays = documentCalculatedWorkDays;
     }
 
     public int ApplicationId { get; }
 
     public int? DocumentId { get; }
+
+    public decimal? CalculatedWorkDays { get; }
+
+    public decimal? DocumentCalculatedWorkDays { get; }
 
     public int StudentId { get; }
 

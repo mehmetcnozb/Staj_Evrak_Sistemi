@@ -109,7 +109,8 @@ public class InternshipService
             resetApproval.Transaction = transaction;
             resetApproval.CommandText = """
                 UPDATE Documents SET IsApproved = 0, RejectionReason = NULL,
-                    StudentFieldsVerified = 0, StudentFieldsVerifiedAt = NULL WHERE InternshipId = $id;
+                    StudentFieldsVerified = 0, StudentFieldsVerifiedAt = NULL,
+                    InternshipFieldsVerified = 0, InternshipFieldsVerifiedAt = NULL WHERE InternshipId = $id;
                 """;
             resetApproval.Parameters.AddWithValue("$id", application.Id);
             resetApproval.ExecuteNonQuery();
