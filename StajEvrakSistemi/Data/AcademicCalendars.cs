@@ -11,5 +11,8 @@ public static class AcademicCalendars
         fallStartDate: new DateTime(2026, 9, 21),
         fallEndDate: new DateTime(2026, 12, 25),
         springStartDate: new DateTime(2027, 2, 8),
-        springEndDate: new DateTime(2027, 5, 28));
+        springEndDate: new DateTime(2027, 5, 28),
+        // Ogretim yili siniri proje icin secilen uygulama kuralidir.
+        academicYearStartDate: new DateTime(2026, 9, 1),
+        academicYearEndDate: new DateTime(2027, 8, 31));
 }

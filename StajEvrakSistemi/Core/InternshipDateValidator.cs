@@ -35,6 +35,9 @@ public static class InternshipDateValidator
         else if (!MatchesAcademicCalendar(application.AcademicYear, calendar))
             errors.Add($"Bu ogretim yili icin akademik takvim tanimli degil. Desteklenen yil: {calendar.AcademicYear}.");
 
+        if (NormalizeSemester(application.Semester) is null)
+            errors.Add("Teslim edilen yariyil Guz veya Bahar olarak girilmeli.");
+
         if (application.StartDate == default || application.EndDate == default)
         {
             errors.Add("Staj baslangic ve bitis tarihleri girilmeli.");
@@ -48,12 +51,37 @@ public static class InternshipDateValidator
 
         errors.AddRange(GetLeadTimeErrors(submissionDate, application.StartDate));
 
+        if (MatchesAcademicCalendar(application.AcademicYear, calendar)
+            && !IsWithinAcademicYear(application.StartDate, application.EndDate, calendar))
+            errors.Add($"Staj tarihleri {calendar.AcademicYearStartDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)}"
+                + $" ile {calendar.AcademicYearEndDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)} arasinda olmali.");
+
         // Baska bir yilin dersleri secilen takvimle kontrol edilemez.
         if (MatchesAcademicCalendar(application.AcademicYear, calendar)
             && HasClassPeriodConflict(application.StartDate, application.EndDate, calendar))
             errors.Add("Staj tarihleri akademik takvimdeki guz veya bahar ders donemiyle cakisiyor.");
 
         return errors;
+    }
+
+    public static string? NormalizeSemester(string? semester)
+    {
+        string? value = semester?.Trim();
+        if (string.Equals(value, "Guz", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(value, "G\u00fcz", StringComparison.OrdinalIgnoreCase))
+            return "Guz";
+        if (string.Equals(value, "Bahar", StringComparison.OrdinalIgnoreCase))
+            return "Bahar";
+        return null;
+    }
+
+    // Stajin iki ucu da secilen ogretim yili icinde olmali. Sinir gunleri dahildir.
+    public static bool IsWithinAcademicYear(DateTime startDate, DateTime endDate, AcademicCalendar calendar)
+    {
+        ArgumentNullException.ThrowIfNull(calendar);
+        return startDate.Date <= endDate.Date
+            && startDate.Date >= calendar.AcademicYearStartDate
+            && endDate.Date <= calendar.AcademicYearEndDate;
     }
 
     private static IReadOnlyList<string> GetLeadTimeErrors(DateTime submissionDate, DateTime internshipStartDate)

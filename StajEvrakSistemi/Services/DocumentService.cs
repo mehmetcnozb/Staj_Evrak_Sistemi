@@ -240,7 +240,7 @@ public class DocumentService
     {
         using var command = connection.CreateCommand();
         command.Transaction = transaction;
-        command.CommandText = "SELECT AcademicYear, StartDate, EndDate FROM Internships WHERE Id = $id;";
+        command.CommandText = "SELECT AcademicYear, StartDate, EndDate, Semester FROM Internships WHERE Id = $id;";
         command.Parameters.AddWithValue("$id", internshipId);
         using var reader = command.ExecuteReader();
         if (!reader.Read())
@@ -254,7 +254,8 @@ public class DocumentService
 
         var application = new InternshipApplication
         {
-            AcademicYear = reader.GetString(0), StartDate = startDate, EndDate = endDate
+            AcademicYear = reader.GetString(0), StartDate = startDate, EndDate = endDate,
+            Semester = reader.IsDBNull(3) ? null : reader.GetString(3)
         };
         var errors = InternshipDateValidator.GetApplicationErrors(application,
             InternshipDateValidator.ToTurkeyDate(uploadedAt), AcademicCalendars.Kocaeli2026_2027);

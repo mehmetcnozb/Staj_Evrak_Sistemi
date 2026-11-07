@@ -307,6 +307,7 @@ public class StatusWorkflowEngine
         var details = new InternshipApplication
         {
             AcademicYear = application.AcademicYear,
+            Semester = application.Semester,
             StartDate = application.StartDate,
             EndDate = application.EndDate,
             EngineerCount = application.EngineerCount,
@@ -362,7 +363,7 @@ public class StatusWorkflowEngine
         command.Transaction = transaction;
         command.CommandText = """
             SELECT Status, StudentId, Ek16Verified, EngineerCount, ResponsibleEngineerName, ResponsibleEngineerTitle,
-                   EngineerRegistrationNumber, EngineerGraduationDepartment, AcademicYear, StartDate, EndDate, CreatedAt
+                   EngineerRegistrationNumber, EngineerGraduationDepartment, AcademicYear, StartDate, EndDate, CreatedAt, Semester
             FROM Internships WHERE Id = $id;
             """;
         command.Parameters.AddWithValue("$id", applicationId);
@@ -380,10 +381,11 @@ public class StatusWorkflowEngine
         DateTime? createdAt = DateTime.TryParse(Str(11), CultureInfo.InvariantCulture,
             DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var timestamp) ? timestamp : null;
         return new ApplicationInfo(status, reader.GetInt32(1), reader.GetInt32(2) == 1, reader.GetInt32(3),
-            Str(4), Str(5), Str(6), Str(7), Str(8) ?? string.Empty, Date(9), Date(10), createdAt);
+            Str(4), Str(5), Str(6), Str(7), Str(8) ?? string.Empty, Date(9), Date(10), createdAt, Str(12));
     }
 
     private sealed record ApplicationInfo(ApplicationStatus Status, int StudentId, bool Ek16Verified, int EngineerCount,
         string? ResponsibleEngineerName, string? ResponsibleEngineerTitle, string? EngineerRegistrationNumber,
-        string? EngineerGraduationDepartment, string AcademicYear, DateTime StartDate, DateTime EndDate, DateTime? CreatedAt);
+        string? EngineerGraduationDepartment, string AcademicYear, DateTime StartDate, DateTime EndDate, DateTime? CreatedAt,
+        string? Semester);
 }

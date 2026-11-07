@@ -79,6 +79,7 @@ public class InternshipService
         application.Status = ApplicationStatus.Uploaded;
         application.NetWorkDays = netWorkDays;
         application.CreatedAt = createdAt;
+        application.Semester = InternshipDateValidator.NormalizeSemester(application.Semester);
         return application.Id;
     }
 
@@ -125,6 +126,7 @@ public class InternshipService
         application.NetWorkDays = netWorkDays;
         application.Ek16Verified = false;
         application.CreatedAt = createdAt;
+        application.Semester = InternshipDateValidator.NormalizeSemester(application.Semester);
     }
 
     /// <summary>
@@ -256,7 +258,7 @@ public class InternshipService
         static object Db(string? value) => string.IsNullOrWhiteSpace(value) ? DBNull.Value : value.Trim();
 
         command.Parameters.AddWithValue("$year", a.AcademicYear.Trim());
-        command.Parameters.AddWithValue("$semester", Db(a.Semester));
+        command.Parameters.AddWithValue("$semester", Db(InternshipDateValidator.NormalizeSemester(a.Semester)));
         command.Parameters.AddWithValue("$start", a.StartDate.ToString(DateFormat, CultureInfo.InvariantCulture));
         command.Parameters.AddWithValue("$end", a.EndDate.ToString(DateFormat, CultureInfo.InvariantCulture));
         command.Parameters.AddWithValue("$company", a.CompanyName.Trim());
