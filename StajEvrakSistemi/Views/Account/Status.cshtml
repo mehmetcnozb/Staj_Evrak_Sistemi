@@ -1,0 +1,23 @@
+@model int
+@{
+    ViewData["Title"] = Model switch
+    {
+        400 => "İstek doğrulanamadı",
+        403 => "Erişim yetkiniz yok",
+        404 => "Sayfa veya kayıt bulunamadı",
+        413 => "Dosya çok büyük",
+        _ => "İşlem tamamlanamadı"
+    };
+}
+<section class="card account-card">
+    <h1>@ViewData["Title"]</h1>
+    <p>Durum kodu @Model</p>
+    @if (Model == 403)
+    {
+        <a asp-action="Login">Giriş sayfasına dön</a>
+    }
+    else
+    {
+        <a asp-action="Index">Ana sayfaya dön</a>
+    }
+</section>

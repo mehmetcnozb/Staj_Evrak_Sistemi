@@ -1,0 +1,40 @@
+@model StudentRegistrationInput
+@{
+    ViewData["Title"] = "Öğrenci hesabı";
+}
+<section class="card account-card">
+    <h1>Öğrenci hesabı oluştur</h1>
+    <form asp-action="Register" method="post" class="form-grid">
+        <div asp-validation-summary="ModelOnly" role="alert" class="full-width"></div>
+        <label class="full-width">
+            @Html.DisplayNameFor(m => m.FullName)
+            <input asp-for="FullName" autocomplete="name" required />
+            <span asp-validation-for="FullName"></span>
+        </label>
+        <label>
+            @Html.DisplayNameFor(m => m.IdentityNumber)
+            <input asp-for="IdentityNumber" inputmode="numeric" maxlength="11" required />
+            <span asp-validation-for="IdentityNumber"></span>
+        </label>
+        <label>
+            @Html.DisplayNameFor(m => m.StudentNumber)
+            <input asp-for="StudentNumber" inputmode="numeric" required />
+            <span asp-validation-for="StudentNumber"></span>
+        </label>
+        <label class="full-width inline-control"><input asp-for="IsForeign" /> @Html.DisplayNameFor(m => m.IsForeign)</label>
+        <label class="full-width">
+            @Html.DisplayNameFor(m => m.Email)
+            <input asp-for="Email" autocomplete="email" required />
+            <span asp-validation-for="Email"></span>
+        </label>
+        <label class="full-width">
+            @Html.DisplayNameFor(m => m.Password)
+            <input asp-for="Password" autocomplete="new-password" minlength="8" required />
+            <span asp-validation-for="Password"></span>
+        </label>
+        <div class="actions full-width">
+            <button type="submit">Hesap oluştur</button>
+            <a asp-action="Login">Giriş ekranı</a>
+        </div>
+    </form>
+</section>
