@@ -56,7 +56,7 @@ public sealed partial class StudentController(
         try
         {
             int id = _internships.CreateApplication(student, input.ToApplication());
-            TempData["StudentNotice"] = "Başvurunuz kaydedildi.";
+            TempData["StudentNotice"] = "Başvurunuz kaydedildi. Ek-16 belgesini aşağıdan yükleyebilirsiniz.";
             return RedirectToAction(nameof(Details), new { id });
         }
         catch (ArgumentException exception)

@@ -53,4 +53,12 @@
             }
         </ul>
     }
+    @if (Model.CanModify)
+    {
+        <partial name="_Upload" model="application.Id" />
+    }
+    else
+    {
+        <p>Başvurunun mevcut durumunda yeni belge yüklenemez.</p>
+    }
 </section>
