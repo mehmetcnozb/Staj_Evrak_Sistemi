@@ -1,0 +1,21 @@
+@using StajEvrakSistemi.Web
+
+@if (ViewData.ModelState[nameof(StudentApplicationInput.GoogleFormUrl)]?.Errors.Count > 0)
+{
+    <dialog id="google-form-warning" aria-labelledby="google-form-warning-title" aria-describedby="google-form-warning-text">
+        <h2 id="google-form-warning-title">Google Form bağlantısı geçersiz</h2>
+        <p id="google-form-warning-text">Staj evrağı teslim formunun HTTPS bağlantısını kontrol edin.</p>
+        <form method="dialog"><button type="submit" autofocus>Tamam</button></form>
+    </dialog>
+    <script>
+        (() => {
+            const dialog = document.getElementById("google-form-warning");
+            if (typeof dialog.showModal === "function") {
+                dialog.showModal();
+            } else {
+                dialog.setAttribute("open", "");
+            }
+            dialog.addEventListener("close", () => document.getElementById("GoogleFormUrl").focus());
+        })();
+    </script>
+}

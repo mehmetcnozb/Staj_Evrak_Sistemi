@@ -1,0 +1,8 @@
+@model StajEvrakSistemi.Web.StudentApplicationInput
+
+<div>
+    <label asp-for="GoogleFormUrl"></label>
+    <input asp-for="GoogleFormUrl" type="text" inputmode="url" placeholder="https://forms.gle/…" aria-describedby="google-form-help" />
+    <small id="google-form-help">İsteğe bağlı. Teslim formunun HTTPS bağlantısını girin.</small>
+    <span asp-validation-for="GoogleFormUrl"></span>
+</div>

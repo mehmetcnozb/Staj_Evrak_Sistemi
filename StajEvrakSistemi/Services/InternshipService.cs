@@ -109,6 +109,9 @@ public class InternshipService
             resetApproval.Transaction = transaction;
             resetApproval.CommandText = """
                 UPDATE Documents SET IsApproved = 0, RejectionReason = NULL,
+                    ApprovalReviewedByUserId = NULL, ApprovalReviewedAt = NULL,
+                    StudentApprovalPresent = NULL, AdvisorApprovalPresent = NULL, EmployerFieldsComplete = NULL,
+                    EmployerStampPresent = NULL, EmployerSignaturePresent = NULL,
                     StudentFieldsVerified = 0, StudentFieldsVerifiedAt = NULL,
                     InternshipFieldsVerified = 0, InternshipFieldsVerifiedAt = NULL,
                     ContactFieldsVerified = 0, ContactFieldsVerifiedAt = NULL,

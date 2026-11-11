@@ -26,7 +26,34 @@ SQLite                 - kullanici, basvuru ve belge bilgilerini saklayan veri t
 Microsoft.Data.Sqlite  - C# uygulamasinin SQLite veritabani ile  iletisim kurmasini saglayan paket.
 ---------------------------------------------------------------------------------------------
 Kurulum ve calistirma
-henuz kurulmadi.
+
+.NET 8 SDK ile depo kökünden ilk yönetici hesabını oluşturun.
+
+```sh
+dotnet run --project StajEvrakSistemi -- --create-admin
+```
+
+Ardından uygulamayı başlatın ve terminaldeki yerel adresi açın.
+
+```sh
+dotnet run --project StajEvrakSistemi -- --urls http://localhost:5080
+```
+
+Yönetici, panelden kurgu öğrenci kayıtlarını içeren örnek CSV'yi indirip içe aktarabilir.
+Öğrenci hesabı giriş ekranından açılır. Veri seti eşleştirmesini denemek için CSV'deki
+bir öğrencinin kimlik, öğrenci numarası ve iletişim bilgileriyle bir test hesabı açın.
+
+Öğrenci staj tarihlerini ve haftalık günlerini seçer, başvurusunu kaydeder ve Ek-16 yükler.
+Yönetici belgeyi indirip incelemeyi başlatır. Ek-16 alanlarını ve imza/kaşe durumunu
+elle girdikten sonra karşılaştırma sonucu öğrenciye de görünür. Hata varsa yönetici
+düzeltme ister. Kontrolleri geçen başvuru onaylandığında Tamamlandı sekmesine geçer.
+
+Google Form alanı HTTPS yanıt bağlantısının biçimini denetler. Vize akışında belge
+incelemesi manuel yapılır.
+
+SQLite dosyası ve yüklenen belgeler varsayılan olarak proje klasöründe saklanır.
+Farklı bir yerel veri klasörü için uygulamayı ve yönetici kurulumunu çalıştırmadan önce
+`StajDataDirectory` ortam değişkenini ayarlayın.
 ---------------------------------------------------------------------------------------------
 Klasor yapisi:
 Staj_Evrak_Sistemi/
@@ -100,7 +127,7 @@ Staj_Evrak_Sistemi/
 Gelistirme durumu
 
 Temel veritabani, kullanici islemleri, yetkilendirme, basvuru yonetimi, veri seti aktarimi ve belge yukleme servisleri gelistirildi. Ogretim yili, yariyil ve staj tarih araligi kayit ve guncellemede denetleniyor. belge teslimi icin en az 30 takvim gunu araniyor. onay ve tamamlanmada son belgenin teslim tarihi kontrol ediliyor.
-Net staj gunu secilen haftalik gunler ve resmi tatillerle hesaplaniyor. kimlik ve format kontrolleri de eklendi. muhendis sayisi 5'in altindaysa bolum bilgisi icin uyari hazirlaniyor. belge onay alanlari admin incelemesiyle kaydediliyor. Son belgedeki bes ogrenci alani basvuru sahibi ve veri setiyle birlikte kontrol ediliyor. belgedeki staj tarihleri, gun bilgileri, iletisim alanlari, yariyil ve isyeri adi da karsilastirmaya baglandi. karsilastirma belgenin numarasina ve zamana bagli kaydediliyor. Web arayuzu ve otomatik belge okuma henuz hazir degil.
+Net staj gunu secilen haftalik gunler ve resmi tatillerle hesaplaniyor. kimlik ve format kontrolleri de eklendi. muhendis sayisi 5'in altindaysa bolum bilgisi icin uyari hazirlaniyor. belge onay alanlari admin incelemesiyle kaydediliyor. Son belgedeki bes ogrenci alani basvuru sahibi ve veri setiyle birlikte kontrol ediliyor. belgedeki staj tarihleri, gun bilgileri, iletisim alanlari, yariyil ve isyeri adi da karsilastirmaya baglandi. karsilastirma belgenin numarasina ve zamana bagli kaydediliyor. Vize akışı öğrenci ve yönetici web panellerinden yürütülebilir.
 ---------------------------------------------------------------------------------------------
 Yapilacak isler
 
@@ -108,19 +135,13 @@ Resmi tatil takviminin diger yillar icin genisletilmesi.
 
 Belgeden okunan diger ogrenci alanlarinin da karsilastirmaya ve ortak onay akisina baglanmasi.
 
-Format hatalarinin ogrenci ve admin ekranlarinda alan bazinda gosterilmesi.
-
-Muhendis sayisi 5'in altindayken bolum bilgisini soran uyari kutusunun ve onay kontrollerinin ekranlara baglanmasi.
-
-Ogrenci ve admin web arayuzlerinin hazirlanmasi.
-
 PDF/Word belgelerinden otomatik alan okuma ve manuel bilgilerle karsilastirma.
 
 Final asamasi icin OCR/HTR ve bos alan tespiti entegrasyonu.
 
 Google Form'a otomatik bilgi aktarimi ve Ek-17 olusturulmasi.
 
-Raporlama ekranlarinin, diyagramlarin ve otomatik testlerin hazirlanmasi.
+Diyagramlarin ve otomatik testlerin hazirlanmasi.
 
 Bilinen sorunlar
 
@@ -143,7 +164,6 @@ Her yeni dosya yuklemesinde teslim tarihi yeniden kontrol ediliyor. reddedilen y
 Onay ve tamamlanmada son belgenin kayitli teslim tarihi kullaniliyor. zamaninda yuklenen belge daha sonra da onaylanip tamamlanabiliyor.
 Belgenin teslim zamani eksikse veya okunamiyorsa onay engelleniyor.
 Eski kayitlar okunabiliyor. yariyil eksikse belge yukleme veya onaydan once tamamlanmali.
-Tarih hatalarinin web ekranlarinda gosterilmesi henuz yapilmadi.
 ---------------------------------------------------------------------------------------------
 Staj gunu hesabi
 Baslangic ve bitis gunleri dahil, ogrencinin sectigi haftalik calisma gunleri sayiliyor.

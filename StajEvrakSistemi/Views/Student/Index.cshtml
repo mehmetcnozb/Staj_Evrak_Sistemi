@@ -1,0 +1,46 @@
+@model IReadOnlyList<StajEvrakSistemi.Models.InternshipApplication>
+@using StajEvrakSistemi.Services
+
+@{
+    ViewData["Title"] = "Öğrenci paneli";
+}
+
+<h1>Öğrenci paneli</h1>
+<p>Staj başvurularınızı oluşturun, Ek-16 belgenizi yükleyin ve inceleme durumunu takip edin.</p>
+<p class="actions"><a asp-action="Create" class="button">Yeni staj başvurusu</a></p>
+
+<section class="card" aria-labelledby="applications-heading">
+    <h2 id="applications-heading">Başvurularım</h2>
+    @if (Model.Count == 0)
+    {
+        <p>Henüz başvurunuz yok. Belge yüklemek için önce yeni bir staj başvurusu oluşturun.</p>
+    }
+    else
+    {
+        <div class="table-scroll">
+            <table>
+                <thead>
+                    <tr>
+                        <th scope="col">Başvuru</th>
+                        <th scope="col">İşyeri</th>
+                        <th scope="col">Staj tarihleri</th>
+                        <th scope="col">Durum</th>
+                        <th scope="col">Hata raporu</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var application in Model)
+                    {
+                        <tr>
+                            <th scope="row"><a asp-action="Details" asp-route-id="@application.Id">Başvuru #@application.Id</a></th>
+                            <td>@application.CompanyName</td>
+                            <td>@application.StartDate.ToString("dd.MM.yyyy") – @application.EndDate.ToString("dd.MM.yyyy")</td>
+                            <td>@StatusWorkflowEngine.GetDisplayName(application.Status)</td>
+                            <td><a asp-controller="Report" asp-action="Details" asp-route-id="@application.Id" aria-label="Başvuru @application.Id hata raporu">Raporu görüntüle</a></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>

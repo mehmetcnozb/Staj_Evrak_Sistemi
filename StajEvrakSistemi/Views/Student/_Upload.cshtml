@@ -1,0 +1,10 @@
+@model int
+@using StajEvrakSistemi.Models
+
+<form asp-action="Upload" asp-route-id="@Model" method="post" enctype="multipart/form-data">
+    <label for="file">Yüklenecek Ek-16 dosyası</label>
+    <input id="file" name="file" type="file" accept=".doc,.docx,.pdf,.jpg,.jpeg,.png" aria-describedby="upload-help upload-error" required />
+    <p id="upload-help">Word (.doc/.docx), PDF, JPEG veya PNG seçin. En fazla @(Ek16Document.MaxFileSizeBytes / (1024 * 1024)) MB.</p>
+    <div id="upload-error" role="alert">@Html.ValidationMessage("file")</div>
+    <div class="actions"><button type="submit">Evrak Yükle</button></div>
+</form>

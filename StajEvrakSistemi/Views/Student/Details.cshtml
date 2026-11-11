@@ -1,0 +1,69 @@
+@model StajEvrakSistemi.Web.StudentApplicationDetails
+@using System.Globalization
+@using StajEvrakSistemi.Core
+@using StajEvrakSistemi.Services
+@using StajEvrakSistemi.Web
+
+@{
+    var application = Model.Application;
+    var turkey = CultureInfo.GetCultureInfo("tr-TR");
+    ViewData["Title"] = $"Başvuru #{application.Id}";
+}
+
+<p><a asp-action="Index">Öğrenci paneline dön</a></p>
+<h1>Başvuru #@application.Id</h1>
+@if (TempData["StudentNotice"] is string notice)
+{
+    <p class="notice" role="status">@notice</p>
+}
+
+<section class="card" aria-labelledby="application-heading">
+    <h2 id="application-heading">@application.CompanyName</h2>
+    <dl class="form-grid">
+        <div><dt>Durum</dt><dd>@StatusWorkflowEngine.GetDisplayName(application.Status)</dd></div>
+        <div><dt>Öğretim yılı / teslim yarıyılı</dt><dd>@application.AcademicYear @(application.Semester == "Guz" ? "Güz" : application.Semester)</dd></div>
+        <div><dt>Staj tarihleri</dt><dd>@application.StartDate.ToString("dd.MM.yyyy") – @application.EndDate.ToString("dd.MM.yyyy")</dd></div>
+        <div><dt>Haftalık çalışma günleri</dt><dd>@string.Join(", ", application.WorkDays.Select(turkey.DateTimeFormat.GetDayName))</dd></div>
+        <div><dt>Net staj günü</dt><dd>@application.NetWorkDays.ToString("0.##", turkey)</dd></div>
+        <div><dt>İşyerindeki mühendis sayısı</dt><dd>@application.EngineerCount</dd></div>
+        <div><dt>İkametgâh adresi</dt><dd>@application.Address</dd></div>
+        <div><dt>Telefon</dt><dd>@application.Phone</dd></div>
+        <div><dt>E-posta</dt><dd>@application.Email</dd></div>
+        @if (!string.IsNullOrWhiteSpace(application.GoogleFormUrl) && GoogleFormUrlValidator.IsValid(application.GoogleFormUrl))
+        {
+            <div><dt>Staj evrağı teslim formu</dt><dd><a href="@application.GoogleFormUrl" rel="noreferrer">Google Form bağlantısını aç</a></dd></div>
+        }
+    </dl>
+    <div class="actions">
+        @if (Model.CanModify)
+        {
+            <a asp-action="Edit" asp-route-id="@application.Id" class="button">Başvuruyu düzenle</a>
+        }
+        <a asp-controller="Report" asp-action="Details" asp-route-id="@application.Id">Hata raporunu görüntüle</a>
+    </div>
+</section>
+
+<section class="card" aria-labelledby="ek16-heading">
+    <h2 id="ek16-heading">Ek-16 belgesi</h2>
+    @if (Model.Documents.Count == 0)
+    {
+        <p>Henüz Ek-16 belgesi yüklenmedi.</p>
+    }
+    else
+    {
+        <ul>
+            @foreach (var document in Model.Documents.Reverse())
+            {
+                <li>Ek-16 #@document.Id · @document.FileFormat.ToUpperInvariant() · @InternshipDateValidator.ToTurkeyDate(document.UploadedAt).ToString("dd.MM.yyyy")</li>
+            }
+        </ul>
+    }
+    @if (Model.CanModify)
+    {
+        <partial name="_Upload" model="application.Id" />
+    }
+    else
+    {
+        <p>Başvurunun mevcut durumunda yeni belge yüklenemez.</p>
+    }
+</section>

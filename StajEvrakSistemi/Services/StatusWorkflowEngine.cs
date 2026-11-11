@@ -139,7 +139,26 @@ public class StatusWorkflowEngine
 
         using var connection = _database.GetConnection();
         using var transaction = connection.BeginTransaction();
+        var log = ChangeStatus(connection, transaction, applicationId, newStatus, currentUser, note);
+        transaction.Commit();
+        return log;
+    }
 
+    public void ApproveAndComplete(int applicationId, User currentUser)
+    {
+        if (currentUser is null)
+            throw new LoginRequiredException("Başvuruyu onaylamak için giriş yapmalısınız.");
+
+        using var connection = _database.GetConnection();
+        using var transaction = connection.BeginTransaction();
+        ChangeStatus(connection, transaction, applicationId, ApplicationStatus.Approved, currentUser, "Ek-16 onaylandı.");
+        ChangeStatus(connection, transaction, applicationId, ApplicationStatus.Completed, currentUser, "Onaylanan başvuru tamamlandı.");
+        transaction.Commit();
+    }
+
+    private StatusTransitionLog ChangeStatus(SqliteConnection connection, SqliteTransaction transaction,
+        int applicationId, ApplicationStatus newStatus, User currentUser, string note)
+    {
         EnsureUserInDatabase(connection, transaction, currentUser);
 
         var application = LoadApplication(connection, transaction, applicationId)
@@ -207,7 +226,6 @@ public class StatusWorkflowEngine
             log.Id = Convert.ToInt32(insert.ExecuteScalar(), CultureInfo.InvariantCulture);
         }
 
-        transaction.Commit();
         return log;
     }
 
