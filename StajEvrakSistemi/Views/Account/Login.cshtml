@@ -1,0 +1,30 @@
+@model LoginInput
+@{
+    ViewData["Title"] = "Giriş yap";
+}
+<section class="card account-card">
+    <h1>Giriş yap</h1>
+    <p>Staj başvurularınızı ve Ek-16 belgelerinizi tek yerden takip edin.</p>
+    @if (TempData["AccountMessage"] is string message)
+    {
+        <p class="notice success" role="status">@message</p>
+    }
+    <form asp-action="Login" method="post" class="form-grid">
+        <div asp-validation-summary="ModelOnly" role="alert" class="full-width"></div>
+        <input asp-for="ReturnUrl" type="hidden" />
+        <label class="full-width">
+            @Html.DisplayNameFor(m => m.Identifier)
+            <input asp-for="Identifier" autocomplete="username" required />
+            <span asp-validation-for="Identifier"></span>
+        </label>
+        <label class="full-width">
+            @Html.DisplayNameFor(m => m.Password)
+            <input asp-for="Password" autocomplete="current-password" required />
+            <span asp-validation-for="Password"></span>
+        </label>
+        <div class="actions full-width">
+            <button type="submit">Giriş yap</button>
+            <a asp-action="Register">Öğrenci hesabı oluştur</a>
+        </div>
+    </form>
+</section>

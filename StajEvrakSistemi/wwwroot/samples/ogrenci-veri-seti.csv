@@ -1,0 +1,3 @@
+StudentNumber,IdentityNumber,FullName,Nationality,Department,AcademicYear,BirthDate,Address,PreviousInternshipDays,Email,Phone,HealthAidStatus
+DEMO001,12345678950,Deniz Örnek,T.C.,Yazılım Mühendisliği,2026-2027,2003-04-15,Örnek Mahallesi Deneme Sokak Bina No: 10 Daire No: 2 Merkez/Elazığ,0,deniz.ornek@example.com,+90 500 000 00 01,Aile üzerinden
+DEMO002,99000000001,Sam Test,Kanada,Yazılım Mühendisliği,2026-2027,2002-08-21,Test Mahallesi Örnek Caddesi Bina No: 7 Daire No: 3 Merkez/Elazığ,15,sam.test@example.com,+90 500 000 00 02,Genel sağlık sigortası

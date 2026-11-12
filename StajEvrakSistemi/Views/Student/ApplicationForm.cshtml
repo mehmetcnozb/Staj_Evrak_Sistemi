@@ -1,0 +1,120 @@
+@model StajEvrakSistemi.Web.StudentApplicationInput
+@using System.Globalization
+@using StajEvrakSistemi.Core
+
+@{
+    var action = Model.Id.HasValue ? "Edit" : "Create";
+    var title = Model.Id.HasValue ? "Staj başvurusunu düzenle" : "Yeni staj başvurusu";
+    var calendar = CultureInfo.GetCultureInfo("tr-TR").DateTimeFormat;
+    DayOfWeek[] week = [DayOfWeek.Monday, DayOfWeek.Tuesday, DayOfWeek.Wednesday, DayOfWeek.Thursday,
+        DayOfWeek.Friday, DayOfWeek.Saturday, DayOfWeek.Sunday];
+    ViewData["Title"] = title;
+}
+
+<p><a asp-action="Index">Öğrenci paneline dön</a></p>
+<h1>@title</h1>
+<form asp-action="@action" asp-route-id="@Model.Id" method="post" class="card">
+    <div asp-validation-summary="ModelOnly" role="alert"></div>
+
+    <div class="form-grid">
+        <div>
+            <label asp-for="AcademicYear"></label>
+            <input asp-for="AcademicYear" placeholder="2026-2027" required />
+            <span asp-validation-for="AcademicYear"></span>
+        </div>
+        <div>
+            <label asp-for="Semester"></label>
+            <select asp-for="Semester" required>
+                <option value="">Yarıyıl seçin</option>
+                <option value="Guz">Güz</option>
+                <option value="Bahar">Bahar</option>
+            </select>
+            <span asp-validation-for="Semester"></span>
+        </div>
+        <div>
+            <label asp-for="StartDate"></label>
+            <input asp-for="StartDate" type="date" asp-format="{0:yyyy-MM-dd}" required />
+            <span asp-validation-for="StartDate"></span>
+        </div>
+        <div>
+            <label asp-for="EndDate"></label>
+            <input asp-for="EndDate" type="date" asp-format="{0:yyyy-MM-dd}" required />
+            <span asp-validation-for="EndDate"></span>
+        </div>
+        <div>
+            <label asp-for="CompanyName"></label>
+            <input asp-for="CompanyName" required />
+            <span asp-validation-for="CompanyName"></span>
+        </div>
+        <div>
+            <label asp-for="Department"></label>
+            <input asp-for="Department" required />
+            <span asp-validation-for="Department"></span>
+        </div>
+        <div>
+            <label asp-for="Address"></label>
+            <textarea asp-for="Address" rows="3" aria-describedby="address-help" required></textarea>
+            <small id="address-help">Örnek: Merkez Mah. Cumhuriyet Cad. No:10 Daire:2 İzmit/Kocaeli</small>
+            <span asp-validation-for="Address"></span>
+        </div>
+        <div>
+            <label asp-for="Email"></label>
+            <input asp-for="Email" type="email" autocomplete="email" required />
+            <span asp-validation-for="Email"></span>
+        </div>
+        <div>
+            <label asp-for="Phone"></label>
+            <input asp-for="Phone" type="tel" autocomplete="tel" placeholder="+90 555 123 45 67" required />
+            <span asp-validation-for="Phone"></span>
+        </div>
+        <div>
+            <label asp-for="Fax"></label>
+            <input asp-for="Fax" type="tel" placeholder="+90 262 123 45 67" />
+            <span asp-validation-for="Fax"></span>
+        </div>
+    </div>
+
+    <fieldset aria-describedby="workdays-help">
+        <legend>Haftalık çalışma günleri</legend>
+        <p id="workdays-help">En az bir gün seçin. Resmî tatiller net staj günü hesabından düşülür.</p>
+        @foreach (var day in week)
+        {
+            <label class="choice"><input type="checkbox" name="WorkDays" value="@day" checked="@Model.WorkDays.Contains(day)" /> @calendar.GetDayName(day)</label>
+        }
+        <span asp-validation-for="WorkDays"></span>
+    </fieldset>
+
+    <div class="form-grid">
+        <div>
+            <label asp-for="EngineerCount"></label>
+            <input asp-for="EngineerCount" type="number" min="1" aria-describedby="engineer-guidance" required />
+            <span asp-validation-for="EngineerCount"></span>
+        </div>
+        <div>
+            <label asp-for="EngineerGraduationDepartment"></label>
+            <input asp-for="EngineerGraduationDepartment" />
+        </div>
+    </div>
+    <p id="engineer-guidance" class="notice" role="status" hidden="@(!EngineerApprovalValidator.ShouldAskGraduationDepartment(Model.EngineerCount.GetValueOrDefault()))">
+        Mühendis sayısı 5'in altında. Mühendisin mezun olduğu bölümü belirtin.
+    </p>
+
+    <partial name="_GoogleFormUrl" model="Model" />
+
+    <div class="actions"><button type="submit">Başvuruyu kaydet</button></div>
+</form>
+
+<script>
+    (() => {
+        const count = document.getElementById("EngineerCount");
+        const guidance = document.getElementById("engineer-guidance");
+        const showGuidance = () => {
+            const engineers = count.valueAsNumber;
+            guidance.hidden = !(engineers >= 1 && engineers < 5);
+        };
+        count.addEventListener("input", showGuidance);
+        showGuidance();
+    })();
+</script>
+
+<partial name="_GoogleFormWarning" />
