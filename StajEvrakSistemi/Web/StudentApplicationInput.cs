@@ -57,6 +57,8 @@ public sealed class StudentApplicationInput : IValidatableObject
     [Display(Name = "Mühendisin mezun olduğu bölüm")]
     public string? EngineerGraduationDepartment { get; set; }
 
+    [Display(Name = "Staj evrağı teslim Google Form URL'si")]
+    public string? GoogleFormUrl { get; set; }
 
     public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
     {
@@ -88,6 +90,7 @@ public sealed class StudentApplicationInput : IValidatableObject
         WorkDays = application.WorkDays.ToList(),
         EngineerCount = application.EngineerCount,
         EngineerGraduationDepartment = application.EngineerGraduationDepartment,
+        GoogleFormUrl = application.GoogleFormUrl
     };
 
     internal InternshipApplication ToApplication() => new()
@@ -106,5 +109,6 @@ public sealed class StudentApplicationInput : IValidatableObject
         WorkDays = WorkDays,
         EngineerCount = EngineerCount!.Value,
         EngineerGraduationDepartment = EngineerGraduationDepartment,
+        GoogleFormUrl = GoogleFormUrl
     };
 }

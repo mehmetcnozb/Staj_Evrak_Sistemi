@@ -29,6 +29,10 @@
         <div><dt>İkametgâh adresi</dt><dd>@application.Address</dd></div>
         <div><dt>Telefon</dt><dd>@application.Phone</dd></div>
         <div><dt>E-posta</dt><dd>@application.Email</dd></div>
+        @if (!string.IsNullOrWhiteSpace(application.GoogleFormUrl) && GoogleFormUrlValidator.IsValid(application.GoogleFormUrl))
+        {
+            <div><dt>Staj evrağı teslim formu</dt><dd><a href="@application.GoogleFormUrl" rel="noreferrer">Google Form bağlantısını aç</a></dd></div>
+        }
     </dl>
     <div class="actions">
         @if (Model.CanModify)

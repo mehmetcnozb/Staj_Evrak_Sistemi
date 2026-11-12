@@ -50,6 +50,7 @@ public sealed partial class StudentController(
     public IActionResult Create(StudentApplicationInput input)
     {
         var student = HttpContext.GetCurrentUser();
+        ValidateGoogleFormUrl(input);
         if (!ModelState.IsValid)
             return View("ApplicationForm", input);
 
@@ -105,6 +106,7 @@ public sealed partial class StudentController(
                 return RedirectToAction(nameof(Details), new { id });
             }
 
+            ValidateGoogleFormUrl(input);
             if (!ModelState.IsValid)
                 return View("ApplicationForm", input);
 
@@ -135,4 +137,10 @@ public sealed partial class StudentController(
     private ViewResult ApplicationDetails(User student, InternshipApplication application) => View(nameof(Details),
         new StudentApplicationDetails(application, _documents.GetDocuments(student, application.Id),
             _workflow.CanModifyOrDelete(application.Status, student)));
+
+    private void ValidateGoogleFormUrl(StudentApplicationInput input)
+    {
+        if (!GoogleFormUrlValidator.IsValid(input.GoogleFormUrl))
+            ModelState.AddModelError(nameof(StudentApplicationInput.GoogleFormUrl), "Geçerli bir HTTPS Google Form bağlantısı girin.");
+    }
 }
