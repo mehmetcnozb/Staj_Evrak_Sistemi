@@ -103,7 +103,21 @@ public class Ek16MatcherService
     /// </summary>
     /// <exception cref="KeyNotFoundException">Basvuru veya belge bulunamadi.</exception>
     public Ek16ComparisonResult CompareScannedDocumentWithDataset(
-        User user, int applicationId, int documentId, ScannedDocumentFields scanned)
+        User user, int applicationId, int documentId, ScannedDocumentFields scanned) =>
+        CompareScannedDocumentWithDataset(user, applicationId, documentId, scanned, approval: null);
+
+    public void ReviewScannedDocument(User admin, int applicationId, int documentId, ScannedDocumentFields scanned,
+        DocumentApprovalFields approval)
+    {
+        ArgumentNullException.ThrowIfNull(approval);
+        if (admin.Role != UserRole.Admin || !admin.HasPermission(Permission.ReviewDocument))
+            throw new ForbiddenAccessException("Bu işlemi yalnızca yönetici yapabilir.");
+
+        CompareScannedDocumentWithDataset(admin, applicationId, documentId, scanned, approval);
+    }
+
+    private Ek16ComparisonResult CompareScannedDocumentWithDataset(
+        User user, int applicationId, int documentId, ScannedDocumentFields scanned, DocumentApprovalFields? approval)
     {
         ArgumentNullException.ThrowIfNull(scanned);
 
@@ -112,6 +126,15 @@ public class Ek16MatcherService
 
         var app = LoadAuthorizedApplication(connection, transaction, user, applicationId);
         EnsureLatestDocument(connection, transaction, applicationId, documentId);
+        if (approval is not null)
+        {
+            using var status = connection.CreateCommand();
+            status.Transaction = transaction;
+            status.CommandText = "SELECT Status FROM Internships WHERE Id = $id;";
+            status.Parameters.AddWithValue("$id", applicationId);
+            if (!Equals(status.ExecuteScalar(), nameof(ApplicationStatus.UnderReview)))
+                throw new InvalidOperationException("Rapor yalnızca İnceleniyor durumundaki başvuruya kaydedilebilir.");
+        }
 
         // Referans kayit belgedeki baska bir kisiye gore degil, basvuru sahibine gore secilir.
         var reference = Compare(connection, transaction, app);
@@ -124,6 +147,16 @@ public class Ek16MatcherService
             reference.MatchedRecord, discrepancies, reference.ComparedAt, documentId,
             internship.CalculatedWorkDays, internship.DocumentCalculatedWorkDays);
         SaveVerification(connection, transaction, result, documentId);
+
+        if (approval is not null)
+        {
+            var errors = discrepancies.Select(item => item.Message)
+                .Concat(EngineerApprovalValidator.GetEngineerErrors(GetApplicationDetails(app)))
+                .Concat(EngineerApprovalValidator.GetDocumentApprovalErrors(approval))
+                .Distinct().ToArray();
+            string? rejectionReason = errors.Length == 0 ? null : string.Join("\n", errors);
+            DocumentService.SaveApprovalFields(connection, transaction, user, documentId, approval, rejectionReason, result.ComparedAt);
+        }
 
         transaction.Commit();
         return result;

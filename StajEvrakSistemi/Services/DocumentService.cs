@@ -184,6 +184,15 @@ public class DocumentService
             throw new InvalidOperationException("Inceleme sonucu son yuklenen Ek-16 belgesine ait olmali.");
 
         var errors = EngineerApprovalValidator.GetDocumentApprovalErrors(fields);
+        string? rejectionReason = errors.Count == 0 ? null : string.Join(" ", errors);
+        SaveApprovalFields(connection, transaction, admin, documentId, fields, rejectionReason, _utcNow());
+        transaction.Commit();
+        return errors;
+    }
+
+    internal static void SaveApprovalFields(SqliteConnection connection, SqliteTransaction transaction,
+        User admin, int documentId, DocumentApprovalFields fields, string? rejectionReason, DateTime reviewedAt)
+    {
         static object DbFlag(bool? value) => value.HasValue ? (value.Value ? 1 : 0) : DBNull.Value;
         using var command = connection.CreateCommand();
         command.Transaction = transaction;
@@ -201,13 +210,11 @@ public class DocumentService
         command.Parameters.AddWithValue("$stamp", DbFlag(fields.EmployerStampPresent));
         command.Parameters.AddWithValue("$signature", DbFlag(fields.EmployerSignaturePresent));
         command.Parameters.AddWithValue("$reviewer", admin.Id);
-        command.Parameters.AddWithValue("$reviewedAt", _utcNow().ToString("o", CultureInfo.InvariantCulture));
-        command.Parameters.AddWithValue("$valid", errors.Count == 0 ? 1 : 0);
-        command.Parameters.AddWithValue("$reason", errors.Count == 0 ? DBNull.Value : string.Join(" ", errors));
+        command.Parameters.AddWithValue("$reviewedAt", reviewedAt.ToString("o", CultureInfo.InvariantCulture));
+        command.Parameters.AddWithValue("$valid", rejectionReason is null ? 1 : 0);
+        command.Parameters.AddWithValue("$reason", (object?)rejectionReason ?? DBNull.Value);
         command.Parameters.AddWithValue("$id", documentId);
         command.ExecuteNonQuery();
-        transaction.Commit();
-        return errors;
     }
 
     /// <summary>

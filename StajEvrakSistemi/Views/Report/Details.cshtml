@@ -73,6 +73,45 @@
     }
 </section>
 
+@if (admin && document is not null && application.Status == ApplicationStatus.UnderReview)
+{
+    <partial name="_ReviewForm" model="Model" />
+}
+
+@if (admin && document is not null && application.Status is ApplicationStatus.Uploaded or ApplicationStatus.UnderReview or ApplicationStatus.Approved)
+{
+    <section class="card">
+        <h2>Başvuru işlemleri</h2>
+        @if (application.Status == ApplicationStatus.Uploaded)
+        {
+            <form asp-action="UpdateStatus" asp-route-id="@application.Id" method="post">
+                <button type="submit" name="target" value="UnderReview">İncelemeyi başlat</button>
+            </form>
+        }
+        @if (application.Status == ApplicationStatus.UnderReview)
+        {
+            <form asp-action="UpdateStatus" asp-route-id="@application.Id" method="post">
+                <label for="note">Hatalı / eksik gerekçesi</label>
+                <textarea name="note" id="note" rows="3" maxlength="500" required></textarea>
+                <div class="actions"><button type="submit" name="target" value="FaultyOrMissing">Düzeltme iste</button></div>
+            </form>
+        }
+        @if (application.Status == ApplicationStatus.UnderReview && document.ApprovalReviewedAt is not null
+            && document.RejectionReason is null && application.Ek16Verified)
+        {
+            <form asp-action="UpdateStatus" asp-route-id="@application.Id" method="post">
+                <div class="actions"><button type="submit" name="target" value="Approved">Onayla ve tamamla</button></div>
+            </form>
+        }
+        @if (application.Status == ApplicationStatus.Approved)
+        {
+            <form asp-action="UpdateStatus" asp-route-id="@application.Id" method="post">
+                <button type="submit" name="target" value="Completed">Tamamla</button>
+            </form>
+        }
+    </section>
+}
+
 @if (Model.History.Count > 0)
 {
     <section class="card">

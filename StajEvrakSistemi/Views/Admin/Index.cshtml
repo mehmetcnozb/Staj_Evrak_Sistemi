@@ -17,6 +17,7 @@
     <section class="card" aria-labelledby="dataset-heading">
         <h2 id="dataset-heading">Öğrenci veri setini yükle</h2>
         <p id="dataset-formats">CSV veya JSON, en fazla 10 MB.</p>
+        <p><a href="~/samples/ogrenci-veri-seti.csv" download>Örnek CSV veri setini indir</a> (kurgu test kayıtları)</p>
         <form asp-action="ImportDataset" method="post" enctype="multipart/form-data">
             <label for="dataset">Veri seti dosyası</label>
             <input id="dataset" name="dataset" type="file" accept=".csv,.json" aria-describedby="dataset-formats" required />
