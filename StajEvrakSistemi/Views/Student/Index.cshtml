@@ -25,6 +25,7 @@
                         <th scope="col">İşyeri</th>
                         <th scope="col">Staj tarihleri</th>
                         <th scope="col">Durum</th>
+                        <th scope="col">Hata raporu</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -35,6 +36,7 @@
                             <td>@application.CompanyName</td>
                             <td>@application.StartDate.ToString("dd.MM.yyyy") – @application.EndDate.ToString("dd.MM.yyyy")</td>
                             <td>@StatusWorkflowEngine.GetDisplayName(application.Status)</td>
+                            <td><a asp-controller="Report" asp-action="Details" asp-route-id="@application.Id" aria-label="Başvuru @application.Id hata raporu">Raporu görüntüle</a></td>
                         </tr>
                     }
                 </tbody>

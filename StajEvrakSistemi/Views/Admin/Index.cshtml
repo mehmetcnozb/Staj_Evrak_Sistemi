@@ -79,6 +79,7 @@
                         <th scope="col">Staj tarihleri</th>
                         <th scope="col">Net staj günü</th>
                         <th scope="col">Durum</th>
+                        <th scope="col">Rapor</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -92,6 +93,7 @@
                             <td>@application.StartDate.ToString("dd.MM.yyyy") – @application.EndDate.ToString("dd.MM.yyyy")</td>
                             <td>@application.NetWorkDays.ToString("0.##")</td>
                             <td>@StatusWorkflowEngine.GetDisplayName(application.Status)</td>
+                            <td><a asp-controller="Report" asp-action="Details" asp-route-id="@application.Id">Başvuru #@application.Id raporu</a></td>
                         </tr>
                     }
                 </tbody>
