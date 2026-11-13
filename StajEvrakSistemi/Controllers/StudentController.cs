@@ -10,18 +10,19 @@ namespace StajEvrakSistemi.Controllers;
 [Authorize(Roles = RolePermissions.RoleStudent)]
 public sealed partial class StudentController(
     InternshipService internships, DocumentService documents, StatusWorkflowEngine workflow,
-    ILogger<StudentController> logger) : Controller
+    StudentDashboardService dashboard, ILogger<StudentController> logger) : Controller
 {
     private readonly InternshipService _internships = internships;
     private readonly DocumentService _documents = documents;
     private readonly StatusWorkflowEngine _workflow = workflow;
+    private readonly StudentDashboardService _dashboard = dashboard;
     private readonly ILogger<StudentController> _logger = logger;
 
     [HttpGet]
     public IActionResult Index()
     {
         var student = HttpContext.GetCurrentUser();
-        return View(_internships.GetMyApplications(student));
+        return View(_dashboard.Build(student));
     }
 
     [HttpGet]

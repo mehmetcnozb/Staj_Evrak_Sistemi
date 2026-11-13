@@ -10,6 +10,11 @@ public class Ek16Document : BaseDocument
 {
     public const long MaxFileSizeBytes = 10 * 1024 * 1024;
 
+    /// <summary>
+    /// Kullaniciya gosterilen kabul edilen format listesi (panel bilgi kutusu icin).
+    /// </summary>
+    public const string AcceptedFormatsDescription = "Word (.doc/.docx), PDF, JPEG, PNG";
+
     private static readonly string[] Formats = { "doc", "docx", "pdf", "jpg", "jpeg", "png" };
 
     public DocumentApprovalFields ApprovalFields { get; internal set; } = new();

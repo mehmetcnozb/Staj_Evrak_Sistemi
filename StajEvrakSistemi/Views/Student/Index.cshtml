@@ -1,4 +1,4 @@
-@model IReadOnlyList<StajEvrakSistemi.Models.InternshipApplication>
+@model StajEvrakSistemi.Web.StudentDashboard
 @using StajEvrakSistemi.Services
 
 @{
@@ -11,7 +11,7 @@
 
 <section class="card" aria-labelledby="applications-heading">
     <h2 id="applications-heading">Başvurularım</h2>
-    @if (Model.Count == 0)
+    @if (!Model.HasApplications)
     {
         <p>Henüz başvurunuz yok. Belge yüklemek için önce yeni bir staj başvurusu oluşturun.</p>
     }
@@ -29,8 +29,9 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach (var application in Model)
+                    @foreach (var row in Model.Applications)
                     {
+                        var application = row.Application;
                         <tr>
                             <th scope="row"><a asp-action="Details" asp-route-id="@application.Id">Başvuru #@application.Id</a></th>
                             <td>@application.CompanyName</td>

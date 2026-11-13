@@ -29,6 +29,7 @@ builder.Services.AddSingleton<DatasetImportService>();
 builder.Services.AddSingleton<Ek16MatcherService>();
 builder.Services.AddSingleton(services => new DocumentService(database,
     services.GetRequiredService<StatusWorkflowEngine>(), Path.Combine(dataDirectory, "uploads")));
+builder.Services.AddSingleton<StudentDashboardService>();
 builder.Services.AddDataProtection().UseEphemeralDataProtectionProvider();
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
