@@ -1,0 +1,48 @@
+%% GitHub main a609b90 sürümündeki Ek-16 web akışı
+%%{init: {"flowchart":{"curve":"basis","nodeSpacing":28,"rankSpacing":29},"theme":"base","themeVariables":{"fontFamily":"Segoe UI, Arial, sans-serif","fontSize":"17px","textColor":"#17324a","lineColor":"#526779","edgeLabelBackground":"#ffffff","primaryBorderColor":"#7293aa"}}}%%
+flowchart TD
+    Start(["Öğrenci oturum açar"])
+    Form["Staj başvuru formunu doldurur"]
+    FormOK{"Form geçerli mi?"}
+    Save["Formu ve net staj gününü kaydet<br/>Durumu Yüklendi yap"]
+    Upload["Öğrenci Ek-16 dosyasını seçer"]
+    FileOK{"Yükleme koşulları<br/>geçerli mi?"}
+    UploadError["Yükleme hatasını göster"]
+    Store["Yeni belgeyi kaydet ve önceki doğrulamayı sıfırla<br/>Hatalı/Eksik ise Yüklendi durumuna dön"]
+    Review["Admin dosyanın varlığını kontrol eder<br/>ve incelemeyi başlatır → İnceleniyor"]
+    Manual["Admin son Ek-16’nın alanlarını<br/>ve onay bilgilerini elle girer"]
+    Import["Admin CSV/JSON test veri setini<br/>referans kayıtlarına aktarır"]
+    Match["Belge alanlarını ve referans kaydını<br/>başvuru bilgileriyle karşılaştır"]
+    Report["İnceleme sonucunu rapora kaydet"]
+    Result{"Admin’in kararı"}
+    Faulty["Admin düzeltme gerekçesi yazar<br/>Durum Hatalı/Eksik olur"]
+    Edit["Öğrenci gerekirse formu düzeltir"]
+    Ready["Admin “Onayla ve tamamla” işlemini seçer"]
+    Confirm{"Onay koşulları<br/>geçerli mi?"}
+    ConfirmError["Hata göster<br/>İnceleniyor olarak kalır"]
+    Done(["Onaylandı → Tamamlandı"])
+
+    Start --> Form --> FormOK
+    FormOK -->|Hayır, formu düzelt| Form
+    FormOK -->|Evet| Save --> Upload --> FileOK
+    FileOK -->|Hayır| UploadError
+    FileOK -->|Evet| Store --> Review --> Manual --> Match
+    Import -.-> Match
+    Match --> Report --> Result
+    Result -->|Düzeltme iste| Faulty --> Edit --> Upload
+    Result -->|Uygun raporu onayla| Ready --> Confirm
+    Confirm -->|Hayır| ConfirmError --> Result
+    Confirm -->|Evet| Done
+
+    classDef student fill:#e8f2fc,stroke:#416d91,color:#16334b,stroke-width:1.5px;
+    classDef admin fill:#f1ecf9,stroke:#79659b,color:#35294c,stroke-width:1.5px;
+    classDef system fill:#f2f6f8,stroke:#6e8798,color:#17324a,stroke-width:1.5px;
+    classDef decision fill:#fff4d7,stroke:#926d26,color:#49360e,stroke-width:1.5px;
+    classDef correction fill:#fff0eb,stroke:#a36257,color:#592c28,stroke-width:1.5px;
+    classDef completed fill:#e5f5ed,stroke:#447f65,color:#164935,stroke-width:1.5px;
+    class Start,Form,Upload,Edit student;
+    class Review,Manual,Import,Ready admin;
+    class Save,Store,Match,Report system;
+    class FormOK,FileOK,Result,Confirm decision;
+    class UploadError,Faulty,ConfirmError correction;
+    class Done completed;
