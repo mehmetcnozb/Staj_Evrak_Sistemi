@@ -30,6 +30,7 @@ Başlangıç ve bitiş tarihleri dahil her tarih için:
         Net gün = net gün + 1 − tatil payı
 
 Formu, öğrenci hesabının ID’sini ve net günü Internships tablosuna kaydet.
+// Belge daha yüklenmeden başvuru Yüklendi durumunu alır.
 Başvuru durumunu Yüklendi olarak başlat.
 Başvuru ayrıntılarını ve Ek-16 yükleme formunu göster.
 ```
@@ -52,6 +53,7 @@ Dosyayı başvuruya ait depolama klasörüne kopyala.
 Veritabanı işlemi başlat.
     Güncel başvuru tarihlerini tekrar denetle.
     Dosya yolunu, türünü ve yükleme zamanını Documents tablosuna yaz.
+    // Belge değişince önceki karşılaştırma sonucu yeniden kullanılamaz.
     Başvurunun önceki Ek-16 doğrulamasını sıfırla.
 Veritabanı işlemini kaydet.
 Kayıt başarısızsa kopyalanan dosyayı sil ve hatayı bildir.
@@ -75,6 +77,7 @@ Admin incelemeyi başlatmak isterse:
 Admin incelemeyi kaydederse:
     Admin rolünü, İnceleniyor durumunu ve seçilen belgenin son Ek-16 olduğunu doğrula.
     Belge alanlarını ve onay bilgilerini Admin’in girdiği formdan al.
+    // Referans kayıt başvuru sahibine göre seçilir.
     Başvuru sahibinin öğrenci numarası veya kimlik numarasıyla referans kaydı ara.
     Her adaya öğrenci numarası eşleşmesi için 4, kimlik eşleşmesi için 4,
     öğretim yılı eşleşmesi için 2 puan ver. En yüksek puanlı kaydı seç.
@@ -94,7 +97,8 @@ Admin incelemeyi kaydederse:
     İşveren bölümünün dolu olduğunu, kaşe ve imzanın bulunduğunu doğrula.
     İncelenmemiş veya beklenen duruma uymayan onay alanlarını hata olarak ekle.
     Son belgeye inceleyen Admin’i, zamanı, onay alanlarını ve varsa hataları kaydet.
-    Raporu göster. Başvuru İnceleniyor durumunda kalır.
+    // İnceleme sonucu kaydedilince başvuru İnceleniyor durumunda kalır.
+    Raporu göster.
 ```
 
 ### Düzeltme isteği ve tamamlama
@@ -109,6 +113,7 @@ Admin Düzeltme iste işlemini seçerse:
 İnceleme kaydı varsa, raporda hata yoksa ve Ek-16 doğrulandıysa:
     Admin’e Onayla ve tamamla işlemini sun.
     Admin onaylarsa:
+        // Onaylandı ve Tamamlandı geçişleri birlikte kaydedilir.
         Tek veritabanı işlemi başlat.
         Onaylandı ve Tamamlandı hedeflerinin her biri için:
             Admin yetkisini, izin verilen geçişi ve son belgenin onay koşullarını denetle.
