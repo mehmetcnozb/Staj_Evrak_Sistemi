@@ -1,0 +1,64 @@
+@model AdminDashboard
+
+<section class="card" aria-labelledby="dataset-heading">
+    <h2 id="dataset-heading">Öğrenci veri setini yükle</h2>
+
+    @if (Model.ImportError is { } error)
+    {
+        <p class="notice error" role="alert">@error</p>
+    }
+
+    @if (Model.ImportResult is { } result)
+    {
+        <div class="notice @(result.Errors.Count == 0 ? "success" : "")" role="status">
+            <h3>Aktarım sonucu</h3>
+            <dl class="admin-import-counts">
+                <div>
+                    <dt>Okunan kayıt</dt>
+                    <dd>@result.TotalRows</dd>
+                </div>
+                <div>
+                    <dt>Eklenen kayıt</dt>
+                    <dd>@result.Imported</dd>
+                </div>
+                <div>
+                    <dt>Dosyada tekrarlanan</dt>
+                    <dd>@result.DuplicatesInFile</dd>
+                </div>
+                <div>
+                    <dt>Veritabanında zaten bulunan</dt>
+                    <dd>@result.DuplicatesInDatabase</dd>
+                </div>
+                <div>
+                    <dt>Hatalı kayıt</dt>
+                    <dd>@result.Errors.Count</dd>
+                </div>
+            </dl>
+        </div>
+
+        @if (result.Errors.Count > 0)
+        {
+            <details class="notice error">
+                <summary>Hatalı satırlar (@result.Errors.Count)</summary>
+                <ul>
+                    @foreach (var row in result.Errors)
+                    {
+                        <li><strong>Satır @row.RowNumber</strong> · @row.Message</li>
+                    }
+                </ul>
+            </details>
+        }
+    }
+
+    <form asp-action="ImportDataset" asp-fragment="dataset-heading" method="post" enctype="multipart/form-data" data-file-picker>
+        <label for="dataset">Veri seti dosyası</label>
+        <input id="dataset" name="dataset" type="file" accept=".csv,.json"
+               aria-describedby="dataset-formats dataset-selection" required />
+        <small id="dataset-formats">CSV veya JSON, en fazla 10 MB.</small>
+        <p id="dataset-selection" class="admin-file-selection" data-file-selection role="status" hidden></p>
+        <div class="actions admin-import-actions">
+            <button type="submit">Veri setini yükle</button>
+            <a href="~/samples/ogrenci-veri-seti.csv" download>Örnek CSV veri setini indir</a>
+        </div>
+    </form>
+</section>

@@ -199,6 +199,32 @@ public class InternshipService
     public IReadOnlyList<InternshipApplication> GetCompletedApplications(User admin) =>
         GetApplications(admin, ApplicationStatus.Completed);
 
+    public IReadOnlyDictionary<int, ApplicationStudent> GetApplicationStudents(User admin)
+    {
+        if (admin is null)
+            throw new LoginRequiredException("Öğrenci bilgilerini görmek için giriş yapmalısınız.");
+        if (!admin.HasPermission(Permission.ViewAllInternships))
+            throw new ForbiddenAccessException("403 Yetkisiz Erişim: Başvuru sahiplerini yalnızca yönetici görebilir.");
+
+        using var connection = _database.GetConnection();
+        UserGuard.EnsureUserInDatabase(connection, null, admin);
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT Users.Id, Users.FullName, Users.StudentNumber
+            FROM Users
+            WHERE Users.Role = 'Student'
+                AND Users.Id IN (SELECT StudentId FROM Internships);
+            """;
+        var students = new Dictionary<int, ApplicationStudent>();
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            var student = new ApplicationStudent(reader.GetString(1), reader.IsDBNull(2) ? null : reader.GetString(2));
+            students.Add(reader.GetInt32(0), student);
+        }
+        return students;
+    }
+
     private static void ValidateBasics(InternshipApplication application)
     {
         if (string.IsNullOrWhiteSpace(application.AcademicYear))

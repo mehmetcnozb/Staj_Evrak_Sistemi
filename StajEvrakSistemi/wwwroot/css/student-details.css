@@ -1,0 +1,81 @@
+.student-detail-heading {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .65rem 1rem;
+    margin-bottom: 1.3rem;
+}
+
+.student-detail-heading h1,
+.student-documents .notice > :last-child,
+.student-status-history li > :last-child {
+    margin-bottom: 0;
+}
+
+.student-correction { margin-bottom: 1.25rem; }
+.student-documents { scroll-margin-top: 1rem; }
+.student-documents [data-file-selection] { overflow-wrap: anywhere; }
+
+.student-status-steps {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 8.5rem), 1fr));
+    gap: .65rem;
+    margin: .9rem 0 1.25rem;
+    padding: 0;
+    list-style: none;
+}
+
+.student-status-steps li {
+    padding: .55rem .45rem;
+    border: 1px solid var(--border);
+    border-radius: .5rem;
+    text-align: center;
+}
+
+.student-status-steps [aria-current="step"] {
+    border-color: var(--primary);
+    box-shadow: inset 0 0 0 1px var(--primary);
+}
+
+.student-step-current {
+    display: block;
+    margin-top: .15rem;
+    color: var(--muted);
+    font-size: .83rem;
+}
+
+.student-status-history {
+    margin: 0;
+    padding: 0 0 0 1rem;
+    border-inline-start: 2px solid var(--border);
+    list-style: none;
+}
+
+.student-status-history li {
+    position: relative;
+    padding-bottom: .85rem;
+}
+
+.student-status-history li:last-child { padding-bottom: 0; }
+
+.student-status-history li::before {
+    position: absolute;
+    inset-block-start: .5rem;
+    inset-inline-start: -1.35rem;
+    width: .55rem;
+    height: .55rem;
+    border-radius: 50%;
+    background: var(--primary);
+    content: "";
+}
+
+.student-transition-meta {
+    margin-bottom: .25rem;
+    color: var(--muted);
+    font-size: .9rem;
+}
+
+.student-transition-note {
+    white-space: pre-line;
+    overflow-wrap: anywhere;
+}

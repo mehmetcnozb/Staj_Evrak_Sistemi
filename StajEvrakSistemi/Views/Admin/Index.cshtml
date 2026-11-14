@@ -1,82 +1,122 @@
-@using StajEvrakSistemi.Services
-@model StajEvrakSistemi.Web.AdminDashboard
+@model AdminDashboard
 @{
     ViewData["Title"] = "Yönetici Paneli";
     var heading = Model.Completed ? "Tamamlanan başvurular" : "Tüm başvurular";
+    var hasFilters = Model.Search is not null || Model.Status.HasValue;
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/admin-panel.css" asp-append-version="true" />
 }
 
 <h1>Yönetici Paneli</h1>
 
 <nav class="tabs" aria-label="Yönetici paneli sekmeleri">
-    <a asp-action="Index" asp-route-completed="false" aria-current="@(!Model.Completed ? "page" : null)">Tüm başvurular</a>
+    <a asp-action="Index" aria-current="@(!Model.Completed ? "page" : null)">Tüm başvurular</a>
     <a asp-action="Index" asp-route-completed="true" aria-current="@(Model.Completed ? "page" : null)">Tamamlandı</a>
 </nav>
 
 @if (!Model.Completed)
 {
-    <section class="card" aria-labelledby="dataset-heading">
-        <h2 id="dataset-heading">Öğrenci veri setini yükle</h2>
-        <p id="dataset-formats">CSV veya JSON, en fazla 10 MB.</p>
-        <p><a href="~/samples/ogrenci-veri-seti.csv" download>Örnek CSV veri setini indir</a> (kurgu test kayıtları)</p>
-        <form asp-action="ImportDataset" method="post" enctype="multipart/form-data">
-            <label for="dataset">Veri seti dosyası</label>
-            <input id="dataset" name="dataset" type="file" accept=".csv,.json" aria-describedby="dataset-formats" required />
-            <button type="submit">Veri setini yükle</button>
-        </form>
-
-        @if (Model.ImportError is { } error)
+    <section class="card" aria-labelledby="review-heading">
+        <h2 id="review-heading">İnceleme bekleyenler <span class="admin-count">@Model.ReviewQueue.Count</span></h2>
+        @if (Model.ReviewQueue.Count == 0)
         {
-            <p class="notice error" role="alert">@error</p>
+            <p class="admin-empty">İnceleme bekleyen başvuru yok.</p>
         }
-
-        @if (Model.ImportResult is { } result)
+        else
         {
-            <div class="notice" role="status">
-                <h3>Aktarım sonucu</h3>
-                <dl>
-                    <dt>Okunan kayıt</dt>
-                    <dd>@result.TotalRows</dd>
-                    <dt>Eklenen kayıt</dt>
-                    <dd>@result.Imported</dd>
-                    <dt>Dosyada tekrarlanan</dt>
-                    <dd>@result.DuplicatesInFile</dd>
-                    <dt>Veritabanında zaten bulunan</dt>
-                    <dd>@result.DuplicatesInDatabase</dd>
-                    <dt>Hatalı kayıt</dt>
-                    <dd>@result.Errors.Count</dd>
-                </dl>
-            </div>
-
-            @if (result.Errors.Count > 0)
-            {
-                <h3>Hatalı satırlar</h3>
-                <ul>
-                    @foreach (var row in result.Errors)
-                    {
-                        <li><strong>Satır @row.RowNumber</strong> · @row.Message</li>
-                    }
-                </ul>
-            }
+            <ul class="admin-queue">
+                @foreach (var row in Model.ReviewQueue)
+                {
+                    <li>
+                        <div>
+                            <strong>@row.StudentName</strong>
+                            <small>@row.Application.CompanyName · #@row.Application.Id</small>
+                        </div>
+                        <a asp-controller="Report" asp-action="Details" asp-route-id="@row.Application.Id"
+                           class="button secondary" aria-label="@($"{row.StudentName}, #{row.Application.Id} numaralı başvuruyu incele")">
+                            İncele
+                        </a>
+                    </li>
+                }
+            </ul>
         }
     </section>
+
+    <partial name="_DatasetImport" model="Model" />
 }
 
 <section class="card" aria-labelledby="applications-heading">
     <h2 id="applications-heading">@heading</h2>
+    <form asp-action="Index" asp-fragment="applications-heading" method="get" class="admin-filters" role="search" aria-label="Başvuru ara">
+        @if (Model.Completed)
+        {
+            <input type="hidden" name="completed" value="true" />
+        }
+        <label for="q">
+            Öğrenci adı veya numarası
+            <input id="q" name="q" type="search" maxlength="120" value="@Model.Search" />
+        </label>
+        @if (!Model.Completed)
+        {
+            <label for="status">
+                Durum
+                <select id="status" name="status">
+                    <option value="">Tüm durumlar</option>
+                    @foreach (var status in Enum.GetValues<ApplicationStatus>())
+                    {
+                        <option value="@status" selected="@(Model.Status == status)">
+                            @StatusWorkflowEngine.GetDisplayName(status)
+                        </option>
+                    }
+                </select>
+            </label>
+        }
+        <div class="actions">
+            <button type="submit">Uygula</button>
+            @if (hasFilters)
+            {
+                <a asp-action="Index" asp-route-completed="@(Model.Completed ? "true" : null)"
+                   asp-fragment="applications-heading" class="button secondary">
+                    Temizle
+                </a>
+            }
+        </div>
+    </form>
+
     @if (Model.Applications.Count == 0)
     {
-        <p>@(Model.Completed ? "Henüz tamamlanan başvuru yok." : "Henüz başvuru yok.")</p>
+        <div class="admin-empty">
+            @if (hasFilters)
+            {
+                <p>Aramanıza veya seçtiğiniz duruma uyan başvuru bulunamadı.</p>
+            }
+            else if (Model.Completed)
+            {
+                <p>Henüz tamamlanan başvuru yok.</p>
+            }
+            else
+            {
+                <p>Henüz başvuru yok.</p>
+                <a href="#dataset-heading">Öğrenci veri setini yükle</a>
+            }
+        </div>
     }
     else
     {
-        <div class="table-scroll">
-            <table aria-labelledby="applications-heading">
+        @if (hasFilters)
+        {
+            <p role="status">@Model.Applications.Count başvuru bulundu.</p>
+        }
+        <div class="table-scroll admin-table" tabindex="0" role="region" aria-labelledby="applications-heading">
+            <table>
                 <thead>
                     <tr>
                         <th scope="col">Başvuru no</th>
-                        <th scope="col">Öğrenci kullanıcı no</th>
+                        <th scope="col">Öğrenci</th>
                         <th scope="col">İşyeri</th>
-                        <th scope="col">Öğretim yılı ve yarıyıl</th>
+                        <th scope="col">Öğretim yılı</th>
                         <th scope="col">Staj tarihleri</th>
                         <th scope="col">Net staj günü</th>
                         <th scope="col">Durum</th>
@@ -84,17 +124,27 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach (var application in Model.Applications)
+                    @foreach (var row in Model.Applications)
                     {
+                        var application = row.Application;
                         <tr>
                             <th scope="row">#@application.Id</th>
-                            <td>@application.StudentId</td>
+                            <td>
+                                <strong>@row.StudentName</strong>
+                                @if (row.StudentNumber is { } number)
+                                {
+                                    <small>@number</small>
+                                }
+                            </td>
                             <td>@application.CompanyName</td>
-                            <td>@application.AcademicYear @application.Semester</td>
-                            <td>@application.StartDate.ToString("dd.MM.yyyy") – @application.EndDate.ToString("dd.MM.yyyy")</td>
+                            <td class="admin-nowrap">@application.AcademicYear @application.Semester</td>
+                            <td class="admin-nowrap">@application.StartDate.ToString("dd.MM.yyyy") – @application.EndDate.ToString("dd.MM.yyyy")</td>
                             <td>@application.NetWorkDays.ToString("0.##")</td>
-                            <td>@StatusWorkflowEngine.GetDisplayName(application.Status)</td>
-                            <td><a asp-controller="Report" asp-action="Details" asp-route-id="@application.Id">Başvuru #@application.Id raporu</a></td>
+                            <td>@await Html.PartialAsync("_StatusBadge", application.Status)</td>
+                            <td>
+                                <a asp-controller="Report" asp-action="Details" asp-route-id="@application.Id"
+                                   aria-label="@($"#{application.Id} numaralı başvurunun raporunu görüntüle")">Raporu aç</a>
+                            </td>
                         </tr>
                     }
                 </tbody>
@@ -102,3 +152,10 @@
         </div>
     }
 </section>
+
+@section Scripts {
+    @if (!Model.Completed)
+    {
+        <script src="~/js/file-selection.js" asp-append-version="true"></script>
+    }
+}

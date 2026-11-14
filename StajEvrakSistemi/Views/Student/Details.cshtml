@@ -1,29 +1,60 @@
 @model StajEvrakSistemi.Web.StudentApplicationDetails
 @using System.Globalization
 @using StajEvrakSistemi.Core
+@using StajEvrakSistemi.Models
 @using StajEvrakSistemi.Services
 @using StajEvrakSistemi.Web
 
 @{
     var application = Model.Application;
     var turkey = CultureInfo.GetCultureInfo("tr-TR");
+    var workDays = application.WorkDays.OrderBy(day => ((int)day + 6) % 7)
+        .Select(turkey.DateTimeFormat.GetDayName);
     ViewData["Title"] = $"Başvuru #{application.Id}";
 }
 
+@section Styles {
+    <link rel="stylesheet" href="~/css/student-details.css" asp-append-version="true" />
+}
+
 <p><a asp-action="Index">Öğrenci paneline dön</a></p>
-<h1>Başvuru #@application.Id</h1>
-@if (TempData["StudentNotice"] is string notice)
+<div class="student-detail-heading">
+    <h1>Başvuru #@application.Id</h1>
+    @await Html.PartialAsync("_StatusBadge", application.Status)
+</div>
+@if (TempData["StudentSuccess"] is string success)
 {
-    <p class="notice" role="status">@notice</p>
+    <p class="notice success" role="status">@success</p>
+}
+@if (TempData["StudentError"] is string error)
+{
+    <p class="notice error" role="alert">@error</p>
+}
+@if (application.Status == ApplicationStatus.FaultyOrMissing)
+{
+    <section class="notice error student-correction" aria-labelledby="correction-heading">
+        <h2 id="correction-heading">Düzeltme gerekli</h2>
+        @if (Model.CorrectionNote is string correctionNote)
+        {
+            <p class="student-transition-note"><strong>Yönetici gerekçesi</strong><br />@correctionNote</p>
+        }
+        else
+        {
+            <p>Bu başvuru için kayıtlı bir düzeltme gerekçesi bulunamadı.</p>
+        }
+        @if (Model.CanUpload)
+        {
+            <a href="#ek16-yukle" class="button">Düzelt ve yeniden yükle</a>
+        }
+    </section>
 }
 
 <section class="card" aria-labelledby="application-heading">
     <h2 id="application-heading">@application.CompanyName</h2>
     <dl class="form-grid">
-        <div><dt>Durum</dt><dd>@StatusWorkflowEngine.GetDisplayName(application.Status)</dd></div>
         <div><dt>Öğretim yılı / teslim yarıyılı</dt><dd>@application.AcademicYear @(application.Semester == "Guz" ? "Güz" : application.Semester)</dd></div>
         <div><dt>Staj tarihleri</dt><dd>@application.StartDate.ToString("dd.MM.yyyy") – @application.EndDate.ToString("dd.MM.yyyy")</dd></div>
-        <div><dt>Haftalık çalışma günleri</dt><dd>@string.Join(", ", application.WorkDays.Select(turkey.DateTimeFormat.GetDayName))</dd></div>
+        <div><dt>Haftalık çalışma günleri</dt><dd>@(application.WorkDays.Count == 0 ? "Kaydedilmemiş" : string.Join(", ", workDays))</dd></div>
         <div><dt>Net staj günü</dt><dd>@application.NetWorkDays.ToString("0.##", turkey)</dd></div>
         <div><dt>İşyerindeki mühendis sayısı</dt><dd>@application.EngineerCount</dd></div>
         <div><dt>İkametgâh adresi</dt><dd>@application.Address</dd></div>
@@ -43,8 +74,35 @@
     </div>
 </section>
 
-<section class="card" aria-labelledby="ek16-heading">
+<section class="card student-documents" id="ek16-yukle" tabindex="-1" aria-labelledby="ek16-heading">
     <h2 id="ek16-heading">Ek-16 belgesi</h2>
+    <div class="notice error" id="upload-error" role="alert"
+         hidden="@(!ViewData.ModelState.TryGetValue("file", out var fileState) || fileState.Errors.Count == 0)">@Html.ValidationMessage("file")</div>
+    <div class="notice" id="upload-help">
+        <p><strong>Dosya ve teslim kuralları</strong></p>
+        <ul>
+            <li>Kabul edilen dosyalar @Ek16Document.AcceptedFormatsDescription.</li>
+            <li>Dosya boyutu en fazla @(Ek16Document.MaxFileSizeBytes / (1024 * 1024)) MB olabilir.</li>
+            <li>Belgeyi staj başlangıcından en az @InternshipDateValidator.MinimumLeadDays takvim günü önce yükleyin.</li>
+        </ul>
+        @if (Model.LatestSubmissionDate is DateTime deadline)
+        {
+            <p><strong>Son teslim:</strong> <time datetime="@deadline.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)">@deadline.ToString("dd.MM.yyyy", turkey)</time></p>
+        }
+    </div>
+    @if (Model.CanModify && !Model.IsSubmissionOnTime)
+    {
+        <div class="notice error" role="alert">
+            @if (Model.LatestSubmissionDate is DateTime missedDeadline)
+            {
+                <p>Son teslim tarihi geçti. Bu staj başlangıcı için belge en geç @missedDeadline.ToString("dd.MM.yyyy", turkey) tarihinde yüklenebilirdi.</p>
+            }
+            else
+            {
+                <p>Başlangıç tarihi bulunamadığı için belge yüklenemiyor. Başvurudaki staj tarihini düzenleyin.</p>
+            }
+        </div>
+    }
     @if (Model.Documents.Count == 0)
     {
         <p>Henüz Ek-16 belgesi yüklenmedi.</p>
@@ -58,12 +116,60 @@
             }
         </ul>
     }
-    @if (Model.CanModify)
+    @if (Model.CanUpload)
     {
         <partial name="_Upload" model="application.Id" />
     }
-    else
+    else if (!Model.CanModify)
     {
         <p>Başvurunun mevcut durumunda yeni belge yüklenemez.</p>
     }
 </section>
+
+<section class="card student-workflow" aria-labelledby="workflow-heading">
+    <h2 id="workflow-heading">Başvuru durumu ve geçmiş</h2>
+    <ol class="student-status-steps" aria-label="Başvuru durumları">
+        @foreach (var status in Enum.GetValues<ApplicationStatus>())
+        {
+            bool current = application.Status == status;
+            <li aria-current="@(current ? "step" : null)">
+                @await Html.PartialAsync("_StatusBadge", status)
+                @if (current)
+                {
+                    <span class="student-step-current">Güncel durum</span>
+                }
+            </li>
+        }
+    </ol>
+    <h3>Durum geçmişi</h3>
+    @if (Model.History.Count == 0)
+    {
+        <p>Henüz durum değişikliği kaydedilmedi.</p>
+    }
+    else
+    {
+        <ol class="student-status-history" aria-label="En yeni durum değişiklikleri">
+            @foreach (var change in Model.History.Reverse())
+            {
+                var transition = change.Transition;
+                var localTime = InternshipDateValidator.ToTurkeyTime(transition.ChangedAt);
+                bool reuploaded = transition.OldStatus == ApplicationStatus.FaultyOrMissing && transition.NewStatus == ApplicationStatus.Uploaded;
+                <li>
+                    <strong>@(reuploaded ? "Düzeltme sonrası yeniden yüklendi" : StatusWorkflowEngine.GetDisplayName(transition.NewStatus))</strong>
+                    <p class="student-transition-meta">
+                        <time datetime="@transition.ChangedAt.ToString("O", CultureInfo.InvariantCulture)">@localTime.ToString("dd.MM.yyyy HH:mm", turkey)</time>
+                        · @(change.ActorName ?? "İşlemi yapan kullanıcı kayıtlı değil")
+                    </p>
+                    @if (transition.Note is string noteText && (!reuploaded || noteText != "Belge yeniden yüklendi."))
+                    {
+                        <p class="student-transition-note">@noteText</p>
+                    }
+                </li>
+            }
+        </ol>
+    }
+</section>
+
+@section Scripts {
+    <script src="~/js/file-selection.js" asp-append-version="true"></script>
+}

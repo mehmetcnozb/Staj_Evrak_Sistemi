@@ -47,6 +47,7 @@ public sealed class StudentApplicationInput : IValidatableObject
     [Display(Name = "Faks (isteğe bağlı)")]
     public string? Fax { get; set; }
 
+    [MinLength(1, ErrorMessage = "En az bir çalışma günü seçin.")]
     public List<DayOfWeek> WorkDays { get; set; } = [];
 
     [Display(Name = "İşyerindeki mühendis sayısı")]
@@ -70,8 +71,6 @@ public sealed class StudentApplicationInput : IValidatableObject
             yield return new ValidationResult("Geçerli bir e-posta adresi yazın.", [nameof(Email)]);
         if (!FormatValidator.IsValidOptionalFax(Fax))
             yield return new ValidationResult("Faks +90 xxx xxx xx xx biçiminde olmalıdır.", [nameof(Fax)]);
-        if (WorkDays.Count == 0)
-            yield return new ValidationResult("En az bir çalışma günü seçin.", [nameof(WorkDays)]);
     }
 
     internal static StudentApplicationInput FromApplication(InternshipApplication application) => new()

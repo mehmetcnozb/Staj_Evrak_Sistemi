@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using StajEvrakSistemi.Core;
 using StajEvrakSistemi.Models;
 using StajEvrakSistemi.Services;
 using StajEvrakSistemi.Web;
@@ -28,9 +29,12 @@ public sealed partial class StudentController
 
         if (!_workflow.CanModifyOrDelete(application.Status, student))
         {
-            TempData["StudentNotice"] = "Başvurunun mevcut durumunda yeni belge yüklenemez.";
+            TempData["StudentError"] = "Başvurunun mevcut durumunda yeni belge yüklenemez.";
             return RedirectToAction(nameof(Details), new { id });
         }
+        if (!InternshipDateValidator.IsSubmissionOnTime(InternshipDateValidator.ToTurkeyDate(DateTime.UtcNow), application.StartDate))
+            return ApplicationDetails(student, application);
+
         if (file is null || file.Length == 0)
         {
             ModelState.AddModelError(nameof(file), "Yüklenecek Ek-16 dosyasını seçin.");
@@ -59,7 +63,7 @@ public sealed partial class StudentController
             }
 
             _documents.UploadDocument(student, id, temporaryPath);
-            TempData["StudentNotice"] = "Ek-16 belgeniz yüklendi.";
+            TempData["StudentSuccess"] = "Ek-16 belgeniz yüklendi.";
             return RedirectToAction(nameof(Details), new { id });
         }
         catch (DocumentValidationException exception)
@@ -95,6 +99,6 @@ public sealed partial class StudentController
             }
         }
 
-        return ApplicationDetails(student, application);
+        return Details(id);
     }
 }

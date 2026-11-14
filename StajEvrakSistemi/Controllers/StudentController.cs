@@ -10,12 +10,13 @@ namespace StajEvrakSistemi.Controllers;
 [Authorize(Roles = RolePermissions.RoleStudent)]
 public sealed partial class StudentController(
     InternshipService internships, DocumentService documents, StatusWorkflowEngine workflow,
-    StudentDashboardService dashboard, ILogger<StudentController> logger) : Controller
+    StudentDashboardService dashboard, AuthService auth, ILogger<StudentController> logger) : Controller
 {
     private readonly InternshipService _internships = internships;
     private readonly DocumentService _documents = documents;
     private readonly StatusWorkflowEngine _workflow = workflow;
     private readonly StudentDashboardService _dashboard = dashboard;
+    private readonly AuthService _auth = auth;
     private readonly ILogger<StudentController> _logger = logger;
 
     [HttpGet]
@@ -58,7 +59,7 @@ public sealed partial class StudentController(
         try
         {
             int id = _internships.CreateApplication(student, input.ToApplication());
-            TempData["StudentNotice"] = "Başvurunuz kaydedildi. Ek-16 belgesini aşağıdan yükleyebilirsiniz.";
+            TempData["StudentSuccess"] = "Başvurunuz kaydedildi.";
             return RedirectToAction(nameof(Details), new { id });
         }
         catch (ArgumentException exception)
@@ -77,7 +78,7 @@ public sealed partial class StudentController(
             var application = _internships.GetApplication(student, id);
             if (!_workflow.CanModifyOrDelete(application.Status, student))
             {
-                TempData["StudentNotice"] = "Başvuruyu mevcut durumunda düzenleyemezsiniz.";
+                TempData["StudentError"] = "Başvuruyu mevcut durumunda düzenleyemezsiniz.";
                 return RedirectToAction(nameof(Details), new { id });
             }
 
@@ -103,7 +104,7 @@ public sealed partial class StudentController(
             var application = _internships.GetApplication(student, id);
             if (!_workflow.CanModifyOrDelete(application.Status, student))
             {
-                TempData["StudentNotice"] = "Başvuruyu mevcut durumunda düzenleyemezsiniz.";
+                TempData["StudentError"] = "Başvuruyu mevcut durumunda düzenleyemezsiniz.";
                 return RedirectToAction(nameof(Details), new { id });
             }
 
@@ -112,7 +113,7 @@ public sealed partial class StudentController(
                 return View("ApplicationForm", input);
 
             _internships.UpdateApplication(student, input.ToApplication());
-            TempData["StudentNotice"] = "Başvurunuz güncellendi.";
+            TempData["StudentSuccess"] = "Başvurunuz güncellendi.";
             return RedirectToAction(nameof(Details), new { id });
         }
         catch (ForbiddenAccessException)
@@ -130,14 +131,24 @@ public sealed partial class StudentController(
         }
         catch (InvalidOperationException exception)
         {
-            TempData["StudentNotice"] = exception.Message;
+            TempData["StudentError"] = exception.Message;
             return RedirectToAction(nameof(Details), new { id });
         }
     }
 
-    private ViewResult ApplicationDetails(User student, InternshipApplication application) => View(nameof(Details),
-        new StudentApplicationDetails(application, _documents.GetDocuments(student, application.Id),
-            _workflow.CanModifyOrDelete(application.Status, student)));
+    private ViewResult ApplicationDetails(User student, InternshipApplication application)
+    {
+        var documents = _documents.GetDocuments(student, application.Id);
+        var history = _workflow.GetHistory(application.Id);
+        var actors = history.Select(entry => entry.ChangedByUserId).OfType<int>().Distinct()
+            .ToDictionary(id => id, id => id == student.Id ? student.FullName : _auth.GetUser(id)?.FullName);
+        var changes = history.Select(entry => new StudentStatusChange(entry,
+            entry.ChangedByUserId is int actorId ? actors[actorId] : null)).ToList();
+        return View(nameof(Details), new StudentApplicationDetails(application, documents, changes,
+            _workflow.CanModifyOrDelete(application.Status, student),
+            InternshipDateValidator.GetLatestSubmissionDate(application.StartDate),
+            InternshipDateValidator.IsSubmissionOnTime(InternshipDateValidator.ToTurkeyDate(DateTime.UtcNow), application.StartDate)));
+    }
 
     private void ValidateGoogleFormUrl(StudentApplicationInput input)
     {

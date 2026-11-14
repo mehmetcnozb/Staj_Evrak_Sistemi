@@ -74,14 +74,14 @@
         </div>
     </div>
 
-    <fieldset aria-describedby="workdays-help">
+    <fieldset aria-describedby="workdays-help workdays-error">
         <legend>Haftalık çalışma günleri</legend>
-        <p id="workdays-help">En az bir gün seçin. Resmî tatiller net staj günü hesabından düşülür.</p>
+        <p id="workdays-help">En az bir gün seçin. Stajda çalışıyorsanız hafta sonunu da seçebilirsiniz. Net gün hesabında tam gün tatiller sayılmaz, yarım gün tatiller yarım gün sayılır.</p>
         @foreach (var day in week)
         {
             <label class="choice"><input type="checkbox" name="WorkDays" value="@day" checked="@Model.WorkDays.Contains(day)" /> @calendar.GetDayName(day)</label>
         }
-        <span asp-validation-for="WorkDays"></span>
+        <span id="workdays-error" asp-validation-for="WorkDays"></span>
     </fieldset>
 
     <div class="form-grid">
