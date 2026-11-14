@@ -1,20 +1,33 @@
+using System.Globalization;
 using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using StajEvrakSistemi.Core;
+using StajEvrakSistemi.Models;
 using StajEvrakSistemi.Services;
 using StajEvrakSistemi.Web;
 
 namespace StajEvrakSistemi.Controllers;
 
 [Authorize(Roles = RolePermissions.RoleAdmin)]
+[ResponseCache(Location = ResponseCacheLocation.None, NoStore = true)]
 public sealed class AdminController(
     InternshipService internships,
     DatasetImportService datasets,
     ILogger<AdminController> logger) : Controller
 {
+    private const int SearchMaxLength = 120;
+    private static readonly CompareInfo StudentNameComparison = CultureInfo.InvariantCulture.CompareInfo;
+
     [HttpGet]
-    public IActionResult Index(bool completed = false) => Dashboard(completed);
+    public IActionResult Index(bool completed = false, ApplicationStatus? status = null, string? q = null)
+    {
+        q = q?.Trim();
+        if (!ModelState.IsValid || q?.Length > SearchMaxLength || (status.HasValue && !Enum.IsDefined(status.Value)))
+            return BadRequest();
+
+        return Dashboard(completed, completed ? null : status, string.IsNullOrEmpty(q) ? null : q);
+    }
 
     [HttpPost]
     [RequestSizeLimit(DatasetImportService.MaxFileSizeBytes + 64 * 1024)]
@@ -72,10 +85,33 @@ public sealed class AdminController(
         }
     }
 
-    private ViewResult Dashboard(bool completed = false, DatasetImportResult? result = null, string? error = null)
+    private ViewResult Dashboard(bool completed = false, ApplicationStatus? status = null, string? search = null,
+        DatasetImportResult? result = null, string? error = null)
     {
         var admin = HttpContext.GetCurrentUser();
-        var applications = completed ? internships.GetCompletedApplications(admin) : internships.GetApplications(admin);
-        return View("Index", new AdminDashboard(applications, completed, result, error));
+        var applications = completed
+            ? internships.GetCompletedApplications(admin)
+            : internships.GetApplications(admin, status);
+        IReadOnlyList<InternshipApplication> underReview = completed ? [] : status == ApplicationStatus.UnderReview
+            ? applications
+            : internships.GetApplications(admin, ApplicationStatus.UnderReview);
+        var students = internships.GetApplicationStudents(admin);
+        // Türkçe adlar, Türkçe karakter girmeden de aranabilsin.
+        string? normalizedSearch = search?.Replace('ı', 'i');
+
+        var applicationRows = applications
+            .Select(application => new AdminApplicationRow(application, students.GetValueOrDefault(application.StudentId)))
+            .Where(row => normalizedSearch is null || MatchesSearch(row, normalizedSearch))
+            .OrderByDescending(row => row.Application.Id)
+            .ToList();
+        var reviewQueue = underReview
+            .Select(application => new AdminApplicationRow(application, students.GetValueOrDefault(application.StudentId)))
+            .ToList();
+        return View("Index", new AdminDashboard(applicationRows, reviewQueue, completed, status, search, result, error));
     }
+
+    private static bool MatchesSearch(AdminApplicationRow row, string search) =>
+        (row.Student is not null && StudentNameComparison.IndexOf(row.Student.FullName.Replace('ı', 'i'), search,
+            CompareOptions.IgnoreCase | CompareOptions.IgnoreNonSpace) >= 0) ||
+        row.StudentNumber?.Contains(search, StringComparison.OrdinalIgnoreCase) == true;
 }

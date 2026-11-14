@@ -47,9 +47,9 @@ public sealed class StudentDashboardService
 
     private StudentApplicationRow BuildRow(Student student, InternshipApplication application, DateTime today)
     {
-        bool hasDocument = _documents.GetDocuments(student, application.Id).Count > 0;
+        var documents = _documents.GetDocuments(student, application.Id);
         bool statusAllowsChanges = _workflow.CanModifyOrDelete(application.Status, student);
-        DateTime latestSubmission = InternshipDateValidator.GetLatestSubmissionDate(application.StartDate);
+        DateTime? latestSubmission = InternshipDateValidator.GetLatestSubmissionDate(application.StartDate);
 
         // Yukleme sirasinda sunucu da ayni fonksiyonla bakar (DocumentService); bu yuzden ekrandaki durum
         // ile sunucu kurali ayrismaz: son teslim gecmisse belge yuklenemez.
@@ -57,7 +57,7 @@ public sealed class StudentDashboardService
         bool canUpload = statusAllowsChanges && !deadlinePassed;
 
         string? correctionNote = application.Status == ApplicationStatus.FaultyOrMissing
-            ? _workflow.GetHistory(application.Id).LastOrDefault(entry => entry.NewStatus == ApplicationStatus.FaultyOrMissing)?.Note
+            ? StudentCorrection.GetReason(application.Status, _workflow.GetHistory(application.Id), documents.LastOrDefault())
             : null;
 
         return new StudentApplicationRow(
@@ -65,7 +65,7 @@ public sealed class StudentDashboardService
             StatusWorkflowEngine.GetDisplayName(application.Status),
             StatusCssClass(application.Status),
             latestSubmission,
-            hasDocument,
+            documents.Count > 0,
             canUpload,
             deadlinePassed,
             correctionNote);
@@ -90,23 +90,24 @@ public sealed class StudentDashboardService
         string? department = applications
             .Select(application => application.Department)
             .FirstOrDefault(value => !string.IsNullOrWhiteSpace(value))
-            ?? FindDepartmentInDataset(student.StudentNumber);
+            ?? FindDepartmentInDataset(student);
 
         return new StudentProfile(student.FullName, student.StudentNumber, department?.Trim());
     }
 
     // Basvuru yoksa bolum, admin veri setindeki en yeni ogretim yilina ait kayittan alinir.
-    private string? FindDepartmentInDataset(string studentNumber)
+    private string? FindDepartmentInDataset(Student student)
     {
         using var connection = _database.GetConnection();
         using var command = connection.CreateCommand();
         command.CommandText = """
             SELECT Department FROM OfficialStudentRecords
-            WHERE StudentNumber = $studentNumber
+            WHERE StudentNumber = $studentNumber AND IdentityNumber = $identityNumber
             ORDER BY AcademicYear DESC, Id DESC
             LIMIT 1;
             """;
-        command.Parameters.AddWithValue("$studentNumber", studentNumber);
+        command.Parameters.AddWithValue("$studentNumber", student.StudentNumber);
+        command.Parameters.AddWithValue("$identityNumber", student.IdentityNumber);
         return command.ExecuteScalar() as string;
     }
 

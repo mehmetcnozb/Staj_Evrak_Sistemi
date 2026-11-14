@@ -1,31 +1,90 @@
 @model StajEvrakSistemi.Web.StudentDashboard
-@using StajEvrakSistemi.Services
+@using System.Globalization
 
 @{
     ViewData["Title"] = "Öğrenci paneli";
+    var turkey = CultureInfo.GetCultureInfo("tr-TR");
 }
 
-<h1>Öğrenci paneli</h1>
-<p>Staj başvurularınızı oluşturun, Ek-16 belgenizi yükleyin ve inceleme durumunu takip edin.</p>
-<p class="actions"><a asp-action="Create" class="button">Yeni staj başvurusu</a></p>
+<header class="panel-hero">
+    <div>
+        <p class="panel-kicker">Öğrenci paneli</p>
+        <h1>Hoş geldin, @Model.Profile.FullName</h1>
+        <p class="panel-profile">
+            <span>Öğrenci no: <strong>@Model.Profile.StudentNumber</strong></span>
+            @if (!string.IsNullOrWhiteSpace(Model.Profile.Department))
+            {
+                <span>@Model.Profile.Department</span>
+            }
+        </p>
+    </div>
+    @if (Model.HasApplications)
+    {
+        <a asp-action="Create" class="button">Yeni staj başvurusu</a>
+    }
+</header>
 
-<section class="card" aria-labelledby="applications-heading">
+<dl class="panel-stats" aria-label="Başvuru özeti">
+    <div class="panel-stat"><dt>Toplam</dt><dd>@Model.Summary.Total</dd></div>
+    <div class="panel-stat"><dt>İnceleniyor</dt><dd>@Model.Summary.UnderReview</dd></div>
+    <div class="panel-stat"><dt>Hatalı / Eksik</dt><dd>@Model.Summary.NeedsCorrection</dd></div>
+    <div class="panel-stat"><dt>Tamamlandı</dt><dd>@Model.Summary.Completed</dd></div>
+</dl>
+
+@foreach (var row in Model.NeedsCorrection)
+{
+    <section class="notice error correction-notice" aria-labelledby="correction-@row.Application.Id">
+        <div>
+            <h2 id="correction-@row.Application.Id">Başvuru #@row.Application.Id için düzeltme gerekli</h2>
+            @if (!string.IsNullOrWhiteSpace(row.CorrectionNote))
+            {
+                <p><strong>Yönetici gerekçesi:</strong> @row.CorrectionNote</p>
+            }
+            else
+            {
+                <p>Yönetici gerekçesi kaydedilmemiş. Başvuru ayrıntılarını ve hata raporunu inceleyin.</p>
+            }
+        </div>
+        @if (row.CanUploadDocument)
+        {
+            <a class="button secondary" asp-action="Details" asp-route-id="@row.Application.Id" asp-fragment="ek16-yukle">Düzelt ve yeniden yükle</a>
+        }
+        else
+        {
+            <a class="button secondary" asp-action="Details" asp-route-id="@row.Application.Id">Ayrıntılar</a>
+        }
+    </section>
+}
+
+<section class="card panel-applications" aria-labelledby="applications-heading">
     <h2 id="applications-heading">Başvurularım</h2>
     @if (!Model.HasApplications)
     {
-        <p>Henüz başvurunuz yok. Belge yüklemek için önce yeni bir staj başvurusu oluşturun.</p>
+        <div class="panel-guide">
+            <div>
+                <h3>İlk staj başvurunu oluştur</h3>
+                <p>Başvurunu hazırlamak ve takip etmek için şu üç adımı izle.</p>
+                <ol class="guide-steps">
+                    <li>Staj bilgilerini gir</li>
+                    <li>Ek-16 belgeni yükle</li>
+                    <li>Kontrol sonucunu incele</li>
+                </ol>
+            </div>
+            <a asp-action="Create" class="button">Yeni staj başvurusu</a>
+        </div>
     }
     else
     {
-        <div class="table-scroll">
-            <table>
+        <div class="table-scroll" tabindex="0" role="region" aria-labelledby="applications-heading">
+            <table class="panel-table">
                 <thead>
                     <tr>
-                        <th scope="col">Başvuru</th>
                         <th scope="col">İşyeri</th>
                         <th scope="col">Staj tarihleri</th>
+                        <th scope="col">Staj günü</th>
                         <th scope="col">Durum</th>
-                        <th scope="col">Hata raporu</th>
+                        <th scope="col">Son teslim</th>
+                        <th scope="col">İşlemler</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -33,11 +92,44 @@
                     {
                         var application = row.Application;
                         <tr>
-                            <th scope="row"><a asp-action="Details" asp-route-id="@application.Id">Başvuru #@application.Id</a></th>
-                            <td>@application.CompanyName</td>
-                            <td>@application.StartDate.ToString("dd.MM.yyyy") – @application.EndDate.ToString("dd.MM.yyyy")</td>
-                            <td>@StatusWorkflowEngine.GetDisplayName(application.Status)</td>
-                            <td><a asp-controller="Report" asp-action="Details" asp-route-id="@application.Id" aria-label="Başvuru @application.Id hata raporu">Raporu görüntüle</a></td>
+                            <th scope="row">@application.CompanyName <small>Başvuru #@application.Id</small></th>
+                            <td class="panel-date-range">
+                                <time datetime="@application.StartDate.ToString("yyyy-MM-dd")">@application.StartDate.ToString("dd.MM.yyyy")</time>
+                                –
+                                <time datetime="@application.EndDate.ToString("yyyy-MM-dd")">@application.EndDate.ToString("dd.MM.yyyy")</time>
+                            </td>
+                            <td>@application.NetWorkDays.ToString("0.##", turkey)</td>
+                            <td>
+                                @await Html.PartialAsync("_StatusBadge", application.Status)
+                                @if (!row.HasDocument)
+                                {
+                                    <small>Ek-16 bekleniyor</small>
+                                }
+                            </td>
+                            <td>
+                                @if (row.LatestSubmissionDate is DateTime deadline)
+                                {
+                                    <time datetime="@deadline.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)">@deadline.ToString("dd.MM.yyyy", turkey)</time>
+                                    @if (row.SubmissionDeadlinePassed)
+                                    {
+                                        <small class="deadline-overdue">Yükleme süresi doldu</small>
+                                    }
+                                }
+                                else
+                                {
+                                    <small class="deadline-overdue">Teslim tarihi hesaplanamadı</small>
+                                }
+                            </td>
+                            <td>
+                                <div class="panel-row-actions">
+                                    <a class="button secondary" asp-action="Details" asp-route-id="@application.Id">Ayrıntılar</a>
+                                    @if (row.CanUploadDocument)
+                                    {
+                                        <a class="button" asp-action="Details" asp-route-id="@application.Id" asp-fragment="ek16-yukle">Evrak yükle</a>
+                                    }
+                                    <a asp-controller="Report" asp-action="Details" asp-route-id="@application.Id" aria-label="Başvuru @application.Id hata raporu">Hata raporu</a>
+                                </div>
+                            </td>
                         </tr>
                     }
                 </tbody>
@@ -45,3 +137,14 @@
         </div>
     }
 </section>
+
+<aside class="card panel-rules" aria-labelledby="rules-heading">
+    <div>
+        <h2 id="rules-heading">Ek-16 teslim kuralları</h2>
+        <p>Belgeni staj başlangıcından en az <strong>@Model.MinimumLeadDays takvim günü önce</strong> yükle.</p>
+    </div>
+    <dl>
+        <div><dt>Dosya türleri</dt><dd>@Model.AcceptedFormatsText</dd></div>
+        <div><dt>Dosya sınırı</dt><dd>@Model.MaxFileSizeMb MB</dd></div>
+    </dl>
+</aside>

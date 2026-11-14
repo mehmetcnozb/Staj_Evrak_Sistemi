@@ -1,10 +1,12 @@
 @model int
-@using StajEvrakSistemi.Models
+@{
+    bool invalidFile = ViewData.ModelState.TryGetValue("file", out var fileState) && fileState.Errors.Count > 0;
+}
 
-<form asp-action="Upload" asp-route-id="@Model" method="post" enctype="multipart/form-data">
+<form asp-action="Upload" asp-route-id="@Model" method="post" enctype="multipart/form-data" data-file-picker>
     <label for="file">Yüklenecek Ek-16 dosyası</label>
-    <input id="file" name="file" type="file" accept=".doc,.docx,.pdf,.jpg,.jpeg,.png" aria-describedby="upload-help upload-error" required />
-    <p id="upload-help">Word (.doc/.docx), PDF, JPEG veya PNG seçin. En fazla @(Ek16Document.MaxFileSizeBytes / (1024 * 1024)) MB.</p>
-    <div id="upload-error" role="alert">@Html.ValidationMessage("file")</div>
+    <input id="file" name="file" type="file" accept=".doc,.docx,.pdf,.jpg,.jpeg,.png"
+           aria-describedby="upload-help upload-error upload-selection" aria-invalid="@(invalidFile ? "true" : null)" required />
+    <p id="upload-selection" role="status" data-file-selection hidden></p>
     <div class="actions"><button type="submit">Evrak Yükle</button></div>
 </form>

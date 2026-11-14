@@ -9,8 +9,10 @@ public static class InternshipDateValidator
     private static readonly TimeZoneInfo TurkeyTimeZone = TimeZoneInfo.FindSystemTimeZoneById("Europe/Istanbul");
 
     // Sistem UTC zamanini Turkiye'deki takvim tarihine cevirir.
-    public static DateTime ToTurkeyDate(DateTime utcTime) => TimeZoneInfo.ConvertTimeFromUtc(
-        DateTime.SpecifyKind(utcTime, DateTimeKind.Utc), TurkeyTimeZone).Date;
+    public static DateTime ToTurkeyDate(DateTime utcTime) => ToTurkeyTime(utcTime).Date;
+
+    public static DateTime ToTurkeyTime(DateTime utcTime) => TimeZoneInfo.ConvertTimeFromUtc(
+        DateTime.SpecifyKind(utcTime, DateTimeKind.Utc), TurkeyTimeZone);
 
     public static IReadOnlyList<string> GetDocumentDeliveryErrors(DateTime? uploadedAtUtc, DateTime internshipStartDate)
     {
@@ -83,8 +85,8 @@ public static class InternshipDateValidator
             return Array.Empty<string>();
 
         string message = $"Teslim staj baslangicindan en az {MinimumLeadDays} takvim gunu once yapilmali.";
-        if (internshipStartDate.Date >= DateTime.MinValue.AddDays(MinimumLeadDays))
-            message += $" Son teslim tarihi: {GetLatestSubmissionDate(internshipStartDate).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)}.";
+        if (GetLatestSubmissionDate(internshipStartDate) is DateTime deadline)
+            message += $" Son teslim tarihi: {deadline.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)}.";
         return new[] { message };
     }
 
@@ -124,8 +126,8 @@ public static class InternshipDateValidator
     }
 
     // Staj baslangicina gore son teslim tarihini hesaplar.
-    public static DateTime GetLatestSubmissionDate(DateTime internshipStartDate)
-    {
-        return internshipStartDate.Date.AddDays(-MinimumLeadDays);
-    }
+    public static DateTime? GetLatestSubmissionDate(DateTime internshipStartDate) =>
+        internshipStartDate.Date >= DateTime.MinValue.AddDays(MinimumLeadDays)
+            ? internshipStartDate.Date.AddDays(-MinimumLeadDays)
+            : null;
 }

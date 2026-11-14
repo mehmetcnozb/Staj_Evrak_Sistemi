@@ -113,12 +113,16 @@ public class DatasetImportService
 
         foreach (var record in parsed.Records)
         {
-            // & (kısa devresiz) ile iki anahtar da her zaman kaydedilir.
-            bool isNew = seenStudents.Add(record.Key) & seenIdentities.Add((record.IdentityNumber, record.AcademicYear));
-            if (isNew)
-                unique.Add(record);
-            else
+            var identityKey = (record.IdentityNumber, record.AcademicYear);
+            if (seenStudents.Contains(record.Key) || seenIdentities.Contains(identityKey))
+            {
                 duplicatesInFile++;
+                continue;
+            }
+
+            seenStudents.Add(record.Key);
+            seenIdentities.Add(identityKey);
+            unique.Add(record);
         }
 
         int imported = 0;

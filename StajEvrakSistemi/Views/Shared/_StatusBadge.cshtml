@@ -1,0 +1,4 @@
+@model StajEvrakSistemi.Core.ApplicationStatus
+@using StajEvrakSistemi.Services
+
+<span class="status-badge status-@Model">@StatusWorkflowEngine.GetDisplayName(Model)</span>
