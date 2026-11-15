@@ -28,13 +28,13 @@
 .student-status-steps li {
     padding: .55rem .45rem;
     border: 1px solid var(--border);
-    border-radius: .6rem;
+    border-radius: var(--radius-md);
     text-align: center;
 }
 
 .student-status-steps [aria-current="step"] {
-    border-color: var(--primary);
-    background: var(--primary-soft);
+    border-color: var(--sage);
+    background: var(--sage-soft);
 }
 
 .student-step-current {
