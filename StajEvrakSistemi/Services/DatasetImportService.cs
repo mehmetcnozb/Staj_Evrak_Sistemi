@@ -34,8 +34,10 @@ public class DatasetImportService
         HealthAidStatus
     }
 
-    // Kayıt oluşturmak için şart olan alanlar; diğerleri dosyada yoksa boş bırakılır.
-    private static readonly Field[] RequiredFields =
+    private static readonly Field[] DatasetFields = Enum.GetValues<Field>();
+
+    // Şemada tüm alanlar bulunur. Bu alanların değerleri de boş bırakılamaz.
+    private static readonly Field[] RequiredValues =
     {
         Field.StudentNumber, Field.IdentityNumber, Field.FullName, Field.Nationality, Field.Department, Field.AcademicYear
     };
@@ -236,7 +238,7 @@ public class DatasetImportService
                 columns.TryAdd(field, i);
         }
 
-        var missing = RequiredFields.Where(f => !columns.ContainsKey(f)).ToList();
+        var missing = DatasetFields.Where(f => !columns.ContainsKey(f)).ToList();
         if (missing.Count > 0)
             throw new InvalidDataException(
                 $"CSV başlığında eksik sütun(lar): {string.Join(", ", missing.Select(f => FieldLabels[f]))}");
@@ -262,8 +264,8 @@ public class DatasetImportService
     }
 
     /// <summary>
-    /// Kökü kayıt dizisi olan JSON dosyasını okur: [ { "StudentNumber": "...", ... }, ... ].
-    /// Alan adları CSV başlıklarıyla aynı şekilde (Türkçe karşılıkları dahil) eşleştirilir.
+    /// Kökü kayıt dizisi olan JSON dosyasını okur. Her nesne, CSV başlıklarına karşılık gelen
+    /// alanları içerir. Alan adlarının Türkçe karşılıkları da kabul edilir.
     /// </summary>
     public DatasetParseResult ParseJson(string filePath)
     {
@@ -303,6 +305,14 @@ public class DatasetImportService
                 };
             }
 
+            var missing = DatasetFields.Where(field => !values.ContainsKey(field)).ToList();
+            if (missing.Count > 0)
+            {
+                errors.Add(new DatasetRowError(rowNumber,
+                    $"JSON kaydında eksik alan(lar): {string.Join(", ", missing.Select(field => FieldLabels[field]))}"));
+                continue;
+            }
+
             AddRecord(values, rowNumber, records, errors);
         }
 
@@ -314,7 +324,7 @@ public class DatasetImportService
     {
         string? Get(Field f) => values.GetValueOrDefault(f);
 
-        var missing = RequiredFields.Where(f => string.IsNullOrWhiteSpace(Get(f))).ToList();
+        var missing = RequiredValues.Where(f => string.IsNullOrWhiteSpace(Get(f))).ToList();
         if (missing.Count > 0)
         {
             errors.Add(new DatasetRowError(rowNumber, $"Eksik alan(lar): {string.Join(", ", missing.Select(f => FieldLabels[f]))}"));

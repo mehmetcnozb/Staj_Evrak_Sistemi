@@ -66,7 +66,8 @@ public class DocumentService
         {
             using var connection = _database.GetConnection();
             using var transaction = connection.BeginTransaction();
-            // Dosya kopyalanirken basvuru tarihleri degistiyse guncel kayit kontrol edilir.
+            // Dosya kopyalanırken durum veya tarihler değişmişse güncel kayıt kontrol edilir.
+            var status = _engine.ValidateUpdateOperation(connection, transaction, internshipId, student);
             ValidateUploadDates(connection, transaction, internshipId, uploadedAt);
             using var command = connection.CreateCommand();
             command.Transaction = transaction;
@@ -82,6 +83,8 @@ public class DocumentService
             command.Parameters.AddWithValue("$uploadedAt", document.UploadedAt.ToString("o", CultureInfo.InvariantCulture));
             document.Id = Convert.ToInt32(command.ExecuteScalar(), CultureInfo.InvariantCulture);
             InvalidateVerification(connection, transaction, internshipId);
+            if (status == ApplicationStatus.FaultyOrMissing)
+                _engine.ChangeStatus(connection, transaction, internshipId, ApplicationStatus.Uploaded, student, "Belge yeniden yüklendi.");
             transaction.Commit();
         }
         catch
@@ -89,10 +92,6 @@ public class DocumentService
             File.Delete(destination);   // kayıt yazılamadıysa yetim dosya bırakma
             throw;
         }
-
-        // Düzeltilip yeniden yüklendi: Hatalı/Eksik -> Yüklendi.
-        if (GetStatus(internshipId) == ApplicationStatus.FaultyOrMissing)
-            _engine.ChangeStatus(internshipId, ApplicationStatus.Uploaded, student, "Belge yeniden yüklendi.");
 
         return document;
     }
@@ -294,15 +293,6 @@ public class DocumentService
         command.CommandText = "UPDATE Internships SET Ek16Verified = 0, Ek16VerifiedAt = NULL WHERE Id = $id;";
         command.Parameters.AddWithValue("$id", internshipId);
         command.ExecuteNonQuery();
-    }
-
-    private ApplicationStatus GetStatus(int internshipId)
-    {
-        using var connection = _database.GetConnection();
-        using var command = connection.CreateCommand();
-        command.CommandText = "SELECT Status FROM Internships WHERE Id = $id;";
-        command.Parameters.AddWithValue("$id", internshipId);
-        return Enum.Parse<ApplicationStatus>((string)command.ExecuteScalar()!);
     }
 
     private static int GetOwnerId(SqliteConnection connection, int internshipId)

@@ -88,7 +88,7 @@ public class AuthService
     }
 
     /// <summary>
-    /// E-posta veya T.C. kimlik no ile giriş yapar. 5 hatalı denemede hesap 15 dakika kilitlenir.
+    /// E-posta, kimlik veya öğrenci numarası ile giriş yapar. 5 hatalı denemede hesap 15 dakika kilitlenir.
     /// Başarısız her deneme FailedLoginLogs tablosuna yazılır.
     /// </summary>
     public LoginResult Login(string emailOrIdentity, string password)
@@ -222,12 +222,19 @@ public class AuthService
         return (long)command.ExecuteScalar()!;
     }
 
-    private static (User User, string PasswordHash)? FindUser(SqliteConnection connection, string emailOrIdentity)
+    private static (User User, string PasswordHash)? FindUser(SqliteConnection connection, string identifier)
     {
         using var command = connection.CreateCommand();
-        command.CommandText = $"SELECT {SelectUserColumns} FROM Users WHERE Email = $email OR IdentityNumber = $identity LIMIT 1;";
-        command.Parameters.AddWithValue("$email", emailOrIdentity.ToLowerInvariant());
-        command.Parameters.AddWithValue("$identity", emailOrIdentity);
+        // Aynı değer bir kimlik numarası ve bir öğrenci numarasıysa mevcut kimlik girişini koru.
+        command.CommandText = $"""
+            SELECT {SelectUserColumns} FROM Users
+            WHERE Email = $email OR IdentityNumber = $identifier
+                OR (Role = 'Student' AND StudentNumber = $identifier)
+            ORDER BY CASE WHEN Email = $email THEN 0 WHEN IdentityNumber = $identifier THEN 1 ELSE 2 END
+            LIMIT 1;
+            """;
+        command.Parameters.AddWithValue("$email", identifier.ToLowerInvariant());
+        command.Parameters.AddWithValue("$identifier", identifier);
 
         using var reader = command.ExecuteReader();
         return reader.Read() ? MapUser(reader) : null;

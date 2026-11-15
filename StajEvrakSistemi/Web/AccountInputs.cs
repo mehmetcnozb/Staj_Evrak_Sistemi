@@ -5,8 +5,8 @@ namespace StajEvrakSistemi.Web;
 
 public sealed class LoginInput
 {
-    [Display(Name = "E-posta veya kimlik numarası")]
-    [Required(ErrorMessage = "E-posta veya kimlik numaranızı girin.")]
+    [Display(Name = "E-posta, öğrenci numarası veya kimlik numarası")]
+    [Required(ErrorMessage = "E-posta, öğrenci numarası veya kimlik numaranızı girin.")]
     public string Identifier { get; set; } = "";
 
     [Display(Name = "Şifre")]
@@ -19,6 +19,9 @@ public sealed class LoginInput
 
 public sealed class StudentRegistrationInput
 {
+    private string _identityNumber = "";
+    private string _studentNumber = "";
+
     [Display(Name = "Ad soyad")]
     [Required(ErrorMessage = "Adınızı ve soyadınızı girin.")]
     [StringLength(120)]
@@ -26,16 +29,22 @@ public sealed class StudentRegistrationInput
 
     [Display(Name = "Kimlik numarası")]
     [Required(ErrorMessage = "Kimlik numaranızı girin.")]
-    [StringLength(11)]
-    public string IdentityNumber { get; set; } = "";
+    public string IdentityNumber
+    {
+        get => _identityNumber;
+        set => _identityNumber = value?.Trim() ?? "";
+    }
 
     [Display(Name = "Yabancı uyrukluyum")]
     public bool IsForeign { get; set; }
 
     [Display(Name = "Öğrenci numarası")]
     [Required(ErrorMessage = "Öğrenci numaranızı girin.")]
-    [StringLength(30)]
-    public string StudentNumber { get; set; } = "";
+    public string StudentNumber
+    {
+        get => _studentNumber;
+        set => _studentNumber = value?.Trim() ?? "";
+    }
 
     [Display(Name = "E-posta")]
     [Required(ErrorMessage = "E-posta adresinizi girin.")]

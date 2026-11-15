@@ -12,7 +12,7 @@
         <input asp-for="Review.DocumentId" type="hidden" />
         <div class="form-grid">
             <label>@Html.DisplayNameFor(m => m.Review.FullName)<input asp-for="Review.FullName" /></label>
-            <label>@Html.DisplayNameFor(m => m.Review.StudentNumber)<input asp-for="Review.StudentNumber" inputmode="numeric" /></label>
+            <label>@Html.DisplayNameFor(m => m.Review.StudentNumber)<input asp-for="Review.StudentNumber" spellcheck="false" /></label>
             <label>@Html.DisplayNameFor(m => m.Review.IdentityNumber)<input asp-for="Review.IdentityNumber" inputmode="numeric" /></label>
             <label>@Html.DisplayNameFor(m => m.Review.Department)<input asp-for="Review.Department" /></label>
             <label>@Html.DisplayNameFor(m => m.Review.AcademicYear)<input asp-for="Review.AcademicYear" placeholder="2026-2027" /></label>

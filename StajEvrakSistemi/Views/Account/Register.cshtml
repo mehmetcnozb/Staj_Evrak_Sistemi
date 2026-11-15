@@ -11,16 +11,18 @@
             <input asp-for="FullName" autocomplete="name" required />
             <span asp-validation-for="FullName"></span>
         </label>
-        <label>
-            @Html.DisplayNameFor(m => m.IdentityNumber)
-            <input asp-for="IdentityNumber" inputmode="numeric" maxlength="11" required />
-            <span asp-validation-for="IdentityNumber"></span>
-        </label>
-        <label>
-            @Html.DisplayNameFor(m => m.StudentNumber)
-            <input asp-for="StudentNumber" inputmode="numeric" required />
-            <span asp-validation-for="StudentNumber"></span>
-        </label>
+        <div>
+            <label asp-for="IdentityNumber"></label>
+            <input asp-for="IdentityNumber" inputmode="numeric" aria-describedby="identity-help identity-error" required />
+            <small id="identity-help">11 rakam. Yabancı kimlik numarası 99 ile başlar.</small>
+            <span asp-validation-for="IdentityNumber" id="identity-error"></span>
+        </div>
+        <div>
+            <label asp-for="StudentNumber"></label>
+            <input asp-for="StudentNumber" spellcheck="false" aria-describedby="student-number-help student-number-error" required />
+            <small id="student-number-help">Okul numaranızı harf ve rakamlarıyla girin.</small>
+            <span asp-validation-for="StudentNumber" id="student-number-error"></span>
+        </div>
         <label class="full-width inline-control"><input asp-for="IsForeign" /> @Html.DisplayNameFor(m => m.IsForeign)</label>
         <label class="full-width">
             @Html.DisplayNameFor(m => m.Email)
