@@ -87,7 +87,6 @@
         <p><strong>Dosya ve teslim kuralları</strong></p>
         <ul>
             <li>Kabul edilen dosyalar @Ek16Document.AcceptedFormatsDescription.</li>
-            <li>Dosya boyutu en fazla @(Ek16Document.MaxFileSizeBytes / (1024 * 1024)) MB olabilir.</li>
             <li>Belgeyi staj başlangıcından en az @InternshipDateValidator.MinimumLeadDays takvim günü önce yükleyin.</li>
         </ul>
         @if (Model.LatestSubmissionDate is DateTime deadline)
@@ -100,7 +99,7 @@
         <div class="notice error" role="alert">
             @if (Model.LatestSubmissionDate is DateTime missedDeadline)
             {
-                <p>Son teslim tarihi geçti. Bu staj başlangıcı için belge en geç @missedDeadline.ToString("dd.MM.yyyy", turkey) tarihinde yüklenebilirdi.</p>
+                <p>Son teslim tarihi geçti. En geç teslim tarihi @missedDeadline.ToString("dd.MM.yyyy", turkey). Yüklenen belgenin süresi incelemede değerlendirilir.</p>
             }
             else
             {

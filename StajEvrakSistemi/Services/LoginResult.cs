@@ -10,12 +10,11 @@ public enum LoginStatus
 }
 
 /// <summary>
-/// Giriş denemesinin sonucu. Başarılıysa User dolu, kilitliyse kalan süre dolu gelir.
+/// Giris denemesinin sonucu. Basariliysa User, hataliysa kalan deneme sayisi bulunur.
 /// </summary>
 public record LoginResult(
     LoginStatus Status,
     User? User = null,
-    TimeSpan? RemainingLockout = null,
     int RemainingAttempts = 0)
 {
     public bool IsSuccess => Status == LoginStatus.Success;

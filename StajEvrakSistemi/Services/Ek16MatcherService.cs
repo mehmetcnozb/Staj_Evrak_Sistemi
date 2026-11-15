@@ -17,7 +17,7 @@ public class Ek16MatcherService
     private const string SelectApplications = """
         SELECT i.Id, i.StudentId, u.StudentNumber, u.IdentityNumber, u.FullName, i.Department, i.AcademicYear, u.IsForeign,
                i.StartDate, i.EndDate, i.WorkDays, i.Address, i.Phone, i.Email, i.Fax,
-               i.Semester, i.CompanyName, i.EngineerCount
+               i.Semester, i.CompanyName, i.EngineerCount, i.Status
         FROM Internships i
         JOIN Users u ON u.Id = i.StudentId
         """;
@@ -42,9 +42,8 @@ public class Ek16MatcherService
         var application = LoadAuthorizedApplication(connection, transaction, user, applicationId);
 
         var result = Compare(connection, transaction, application);
-        if (!result.IsMatched)
+        if (!result.IsMatched && application.Status != ApplicationStatus.Completed)
             InvalidateVerification(connection, transaction, applicationId);
-
         transaction.Commit();
         return result;
     }
@@ -64,10 +63,6 @@ public class Ek16MatcherService
         var results = LoadApplications(connection, transaction, applicationId: null)
             .Select(application => Compare(connection, transaction, application))
             .ToList();
-
-        foreach (var result in results)
-            if (!result.IsMatched)
-                InvalidateVerification(connection, transaction, result.ApplicationId);
 
         transaction.Commit();
         return results;
@@ -107,17 +102,17 @@ public class Ek16MatcherService
         CompareScannedDocumentWithDataset(user, applicationId, documentId, scanned, approval: null);
 
     public void ReviewScannedDocument(User admin, int applicationId, int documentId, ScannedDocumentFields scanned,
-        DocumentApprovalFields approval)
+        DocumentApprovalFields approval, string? readError = null)
     {
         ArgumentNullException.ThrowIfNull(approval);
         if (admin.Role != UserRole.Admin || !admin.HasPermission(Permission.ReviewDocument))
             throw new ForbiddenAccessException("Bu işlemi yalnızca yönetici yapabilir.");
 
-        CompareScannedDocumentWithDataset(admin, applicationId, documentId, scanned, approval);
+        CompareScannedDocumentWithDataset(admin, applicationId, documentId, scanned, approval, readError);
     }
 
     private Ek16ComparisonResult CompareScannedDocumentWithDataset(
-        User user, int applicationId, int documentId, ScannedDocumentFields scanned, DocumentApprovalFields? approval)
+        User user, int applicationId, int documentId, ScannedDocumentFields scanned, DocumentApprovalFields? approval, string? readError = null)
     {
         ArgumentNullException.ThrowIfNull(scanned);
 
@@ -125,21 +120,19 @@ public class Ek16MatcherService
         using var transaction = connection.BeginTransaction();
 
         var app = LoadAuthorizedApplication(connection, transaction, user, applicationId);
-        EnsureLatestDocument(connection, transaction, applicationId, documentId);
-        if (approval is not null)
-        {
-            using var status = connection.CreateCommand();
-            status.Transaction = transaction;
-            status.CommandText = "SELECT Status FROM Internships WHERE Id = $id;";
-            status.Parameters.AddWithValue("$id", applicationId);
-            if (!Equals(status.ExecuteScalar(), nameof(ApplicationStatus.UnderReview)))
-                throw new InvalidOperationException("Rapor yalnızca İnceleniyor durumundaki başvuruya kaydedilebilir.");
-        }
+        if (user.Role == UserRole.Student && app.Status == ApplicationStatus.Completed)
+            throw new ForbiddenAccessException("Tamamlanan belgeyi yalnızca yönetici değiştirebilir.");
+        if (approval is not null && app.Status != ApplicationStatus.UnderReview)
+            throw new InvalidOperationException("Rapor yalnızca İnceleniyor durumundaki başvuruya kaydedilebilir.");
+        DateTime uploadedAt = GetLatestDocumentUploadTime(connection, transaction, applicationId, documentId);
 
         // Referans kayit belgedeki baska bir kisiye gore degil, basvuru sahibine gore secilir.
         var reference = Compare(connection, transaction, app);
         var internship = GetInternshipComparison(app, scanned);
-        var discrepancies = reference.Discrepancies.Concat(GetScannedDiscrepancies(app, scanned))
+        var readIssues = readError is null ? Array.Empty<Ek16Discrepancy>()
+            : new[] { new Ek16Discrepancy(Ek16Field.Record, null, null, readError) };
+        var discrepancies = reference.Discrepancies.Concat(readIssues).Concat(GetScannedDiscrepancies(app, scanned))
+            .Concat(CompareOptionalDatasetFields(reference.MatchedRecord, scanned))
             .Concat(internship.Discrepancies)
             .Concat(ContactDocumentValidator.Compare(GetApplicationDetails(app), scanned))
             .Concat(ApplicationDocumentValidator.Compare(GetApplicationDetails(app), scanned)).Distinct().ToArray();
@@ -153,6 +146,7 @@ public class Ek16MatcherService
             var errors = discrepancies.Select(item => item.Message)
                 .Concat(EngineerApprovalValidator.GetEngineerErrors(GetApplicationDetails(app)))
                 .Concat(EngineerApprovalValidator.GetDocumentApprovalErrors(approval))
+                .Concat(InternshipDateValidator.GetDocumentDeliveryErrors(uploadedAt, app.StartDate))
                 .Distinct().ToArray();
             string? rejectionReason = errors.Length == 0 ? null : string.Join("\n", errors);
             DocumentService.SaveApprovalFields(connection, transaction, user, documentId, approval, rejectionReason, result.ComparedAt);
@@ -160,6 +154,28 @@ public class Ek16MatcherService
 
         transaction.Commit();
         return result;
+    }
+
+    private static IEnumerable<Ek16Discrepancy> CompareOptionalDatasetFields(
+        OfficialStudentRecord? reference, ScannedDocumentFields scanned)
+    {
+        if (reference is null)
+            yield break;
+
+        foreach (var (field, label, documentValue, referenceValue) in new[]
+        {
+            (Ek16Field.BirthDate, "Doğum tarihi", scanned.BirthDate?.ToString("dd.MM.yyyy"),
+                reference.BirthDate?.ToString("dd.MM.yyyy")),
+            (Ek16Field.PreviousInternshipDays, "Önceki staj günü", scanned.PreviousInternshipDays?.ToString(),
+                reference.PreviousInternshipDays?.ToString()),
+            (Ek16Field.HealthAidStatus, "Sağlık yardımı statüsü", scanned.HealthAidStatus, reference.HealthAidStatus)
+        })
+        {
+            if (documentValue is not null && referenceValue is not null
+                && NormalizeText(documentValue) != NormalizeText(referenceValue))
+                yield return new Ek16Discrepancy(field, documentValue, referenceValue,
+                    $"{label} uyuşmuyor: Ek-16 belgesinde '{documentValue}', veri setinde '{referenceValue}'.");
+        }
     }
 
     private static InternshipComparisonResult GetInternshipComparison(ApplicationInfo app, ScannedDocumentFields scanned) =>
@@ -191,25 +207,21 @@ public class Ek16MatcherService
         return app;
     }
 
-    private static void EnsureLatestDocument(
+    private static DateTime GetLatestDocumentUploadTime(
         SqliteConnection connection, SqliteTransaction transaction, int applicationId, int documentId)
     {
-        using var find = connection.CreateCommand();
-        find.Transaction = transaction;
-        find.CommandText = "SELECT InternshipId FROM Documents WHERE Id = $id AND DocumentType = 'Ek16';";
-        find.Parameters.AddWithValue("$id", documentId);
-        object? owner = find.ExecuteScalar();
-        if (owner is null or DBNull)
-            throw new KeyNotFoundException("Karsilastirilacak Ek-16 belgesi bulunamadi.");
-        if (Convert.ToInt32(owner, CultureInfo.InvariantCulture) != applicationId)
-            throw new ForbiddenAccessException("Belge secilen basvuruya ait degil.");
-
         using var latest = connection.CreateCommand();
         latest.Transaction = transaction;
-        latest.CommandText = "SELECT MAX(Id) FROM Documents WHERE InternshipId = $id AND DocumentType = 'Ek16';";
+        latest.CommandText = """
+            SELECT Id, UploadedAt FROM Documents WHERE InternshipId = $id AND DocumentType = 'Ek16'
+            ORDER BY Id DESC LIMIT 1;
+            """;
         latest.Parameters.AddWithValue("$id", applicationId);
-        if (Convert.ToInt32(latest.ExecuteScalar(), CultureInfo.InvariantCulture) != documentId)
-            throw new InvalidOperationException("Karsilastirma son yuklenen Ek-16 belgesine ait olmali.");
+        using var row = latest.ExecuteReader();
+        if (!row.Read() || row.GetInt32(0) != documentId)
+            throw new InvalidOperationException("Karşılaştırma son yüklenen Ek-16 belgesine ait olmalı.");
+        return DateTime.Parse(row.GetString(1), CultureInfo.InvariantCulture,
+            DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal);
     }
 
     private static List<Ek16Discrepancy> GetScannedDiscrepancies(ApplicationInfo app, ScannedDocumentFields scanned)
@@ -222,8 +234,6 @@ public class Ek16MatcherService
         CompareWithScanned(errors, Ek16Field.AcademicYear, "Ogretim yili", app.AcademicYear, scanned.AcademicYear, false);
         if (!string.IsNullOrWhiteSpace(scanned.IdentityNumber))
             CheckIdentity(errors, scanned.IdentityNumber.Trim(), app.IsForeign, "Belgedeki");
-        if (!string.IsNullOrWhiteSpace(scanned.StudentNumber) && !FormatValidator.IsValidStudentNumber(scanned.StudentNumber))
-            errors.Add(new(Ek16Field.StudentNumber, scanned.StudentNumber, null, "Belgedeki ogrenci numarasinin bicimi gecersiz."));
         return errors;
     }
 
@@ -234,7 +244,7 @@ public class Ek16MatcherService
         errors.AddRange(ApplicationDocumentValidator.GetApplicationErrors(GetApplicationDetails(app)));
         CheckIdentity(errors, app.IdentityNumber?.Trim(), app.IsForeign, "Kayitli");
         if (!FormatValidator.IsValidStudentNumber(app.StudentNumber))
-            errors.Add(new(Ek16Field.StudentNumber, app.StudentNumber, null, "Kayitli ogrenci numarasinin bicimi gecersiz."));
+            errors.Add(new(Ek16Field.StudentNumber, app.StudentNumber, null, "Kayitli ogrenci numarasi bos olamaz."));
         if (!InternshipDateValidator.IsAcademicYearValid(app.AcademicYear))
             errors.Add(new(Ek16Field.AcademicYear, app.AcademicYear, null, "Kayitli ogretim yilinin bicimi gecersiz."));
         return errors;
@@ -461,7 +471,8 @@ public class Ek16MatcherService
                 reader.GetString(4),
                 reader.IsDBNull(5) ? null : reader.GetString(5),
                 reader.GetString(6), reader.GetInt32(7) == 1, Date(8), Date(9), days,
-                Str(11), Str(12), Str(13), Str(14), Str(15), Str(16), reader.IsDBNull(17) ? 0 : reader.GetInt32(17)));
+                Str(11), Str(12), Str(13), Str(14), Str(15), Str(16), reader.IsDBNull(17) ? 0 : reader.GetInt32(17),
+                Enum.Parse<ApplicationStatus>(reader.GetString(18))));
         }
         return applications;
     }
@@ -499,5 +510,5 @@ public class Ek16MatcherService
         DateTime EndDate,
         IReadOnlyList<DayOfWeek> WorkDays,
         string? Address, string? Phone, string? Email, string? Fax,
-        string? Semester, string? CompanyName, int EngineerCount);
+        string? Semester, string? CompanyName, int EngineerCount, ApplicationStatus Status);
 }

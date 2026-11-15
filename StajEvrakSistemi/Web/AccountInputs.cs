@@ -1,5 +1,4 @@
 using System.ComponentModel.DataAnnotations;
-using StajEvrakSistemi.Services;
 
 namespace StajEvrakSistemi.Web;
 
@@ -55,6 +54,5 @@ public sealed class StudentRegistrationInput
     [Display(Name = "Şifre")]
     [DataType(DataType.Password)]
     [Required(ErrorMessage = "Bir şifre girin.")]
-    [MinLength(AuthService.MinPasswordLength, ErrorMessage = "Şifre en az 8 karakter olmalıdır.")]
     public string Password { get; set; } = "";
 }

@@ -10,7 +10,7 @@ public sealed record StudentApplicationDetails(
     DateTime? LatestSubmissionDate,
     bool IsSubmissionOnTime)
 {
-    public bool CanUpload => CanModify && IsSubmissionOnTime;
+    public bool CanUpload => CanModify;
 
     public string? CorrectionNote => StudentCorrection.GetReason(Application.Status,
         History.Select(entry => entry.Transition), Documents.LastOrDefault());

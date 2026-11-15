@@ -9,7 +9,6 @@ namespace StajEvrakSistemi.Controllers;
 public sealed partial class StudentController
 {
     [HttpPost]
-    [RequestSizeLimit(Ek16Document.MaxFileSizeBytes + 64 * 1024)]
     public async Task<IActionResult> Upload([FromRoute] int id, IFormFile? file, CancellationToken cancellationToken)
     {
         var student = HttpContext.GetCurrentUser();
@@ -32,37 +31,9 @@ public sealed partial class StudentController
             TempData["StudentError"] = "Başvurunun mevcut durumunda yeni belge yüklenemez.";
             return RedirectToAction(nameof(Details), new { id });
         }
-        if (!InternshipDateValidator.IsSubmissionOnTime(InternshipDateValidator.ToTurkeyDate(DateTime.UtcNow), application.StartDate))
-            return ApplicationDetails(student, application);
-
-        if (file is null || file.Length == 0)
-        {
-            ModelState.AddModelError(nameof(file), "Yüklenecek Ek-16 dosyasını seçin.");
-            return ApplicationDetails(student, application);
-        }
-        if (file.Length > Ek16Document.MaxFileSizeBytes)
-        {
-            ModelState.AddModelError(nameof(file), $"Dosya boyutu en fazla {Ek16Document.MaxFileSizeBytes / (1024 * 1024)} MB olabilir.");
-            return ApplicationDetails(student, application);
-        }
-
-        string extension = Path.GetExtension(file.FileName).ToLowerInvariant();
-        if (extension is not (".doc" or ".docx" or ".pdf" or ".jpg" or ".jpeg" or ".png"))
-        {
-            ModelState.AddModelError(nameof(file), "Yalnızca Word (.doc/.docx), PDF, JPEG ve PNG dosyaları kabul edilir.");
-            return ApplicationDetails(student, application);
-        }
-
-        string temporaryPath = Path.Combine(Path.GetTempPath(), $"staj-ek16-{Guid.NewGuid():N}{extension}");
         try
         {
-            await using (var temporaryFile = new FileStream(temporaryPath, FileMode.CreateNew, FileAccess.Write,
-                FileShare.None, bufferSize: 81920, useAsync: true))
-            {
-                await file.CopyToAsync(temporaryFile, cancellationToken);
-            }
-
-            _documents.UploadDocument(student, id, temporaryPath);
+            await Ek16Upload.Store(file, path => _documents.UploadDocument(student, id, path), _logger, cancellationToken);
             TempData["StudentSuccess"] = "Ek-16 belgeniz yüklendi.";
             return RedirectToAction(nameof(Details), new { id });
         }
@@ -86,17 +57,6 @@ public sealed partial class StudentController
         {
             _logger.LogWarning(exception, "Ek-16 dosyası {ApplicationId} numaralı başvuru için kaydedilemedi.", id);
             ModelState.AddModelError(nameof(file), "Dosya kaydedilemedi. Lütfen tekrar deneyin.");
-        }
-        finally
-        {
-            try
-            {
-                System.IO.File.Delete(temporaryPath);
-            }
-            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
-            {
-                _logger.LogWarning(exception, "Geçici Ek-16 dosyası silinemedi.");
-            }
         }
 
         return Details(id);

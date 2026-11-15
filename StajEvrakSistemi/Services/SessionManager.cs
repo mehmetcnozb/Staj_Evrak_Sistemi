@@ -7,23 +7,21 @@ namespace StajEvrakSistemi.Services;
 /// <summary>
 /// Giriş yapmış kullanıcıların oturumlarını yönetir: başlatır, token ile doğrular ve sonlandırır.
 /// Aynı anda birden fazla kullanıcının oturumu açık olabilir (web sitesi); her istek kendi oturum
-/// token'ıyla gelir. Bir kullanıcı yeniden giriş yaparsa önceki oturumu kapanır.
+/// token ile gelir. Cikis yalnizca verilen oturumu sonlandirir.
 /// Süresi dolan oturum ilk kontrolde otomatik olarak kapatılır.
 /// </summary>
 public class SessionManager
 {
-    public static readonly TimeSpan DefaultSessionDuration = TimeSpan.FromMinutes(30);
-
     private const int TokenSizeBytes = 32;
 
     private readonly ConcurrentDictionary<string, UserSession> _sessions = new();
-    private readonly TimeSpan _sessionDuration;
+    private readonly TimeSpan? _sessionDuration;
     private readonly Func<DateTime> _utcNow;
 
     public SessionManager(TimeSpan? sessionDuration = null, Func<DateTime>? utcNow = null)
     {
-        _sessionDuration = sessionDuration ?? DefaultSessionDuration;
-        if (_sessionDuration <= TimeSpan.Zero)
+        _sessionDuration = sessionDuration;
+        if (_sessionDuration.HasValue && _sessionDuration.Value <= TimeSpan.Zero)
             throw new ArgumentOutOfRangeException(nameof(sessionDuration), "Oturum süresi pozitif olmalıdır.");
 
         _utcNow = utcNow ?? (() => DateTime.UtcNow);
@@ -42,7 +40,7 @@ public class SessionManager
     }
 
     /// <summary>
-    /// Başarılı girişten sonra yeni oturum açar. Aynı kullanıcının varsa önceki oturumu kapanır.
+    /// Basarili giristen sonra yeni oturum acar.
     /// </summary>
     public UserSession StartSession(User user)
     {
@@ -50,11 +48,9 @@ public class SessionManager
         if (user.Id <= 0)
             throw new ArgumentException("Oturum yalnızca kayıtlı bir kullanıcı için açılabilir.", nameof(user));
 
-        foreach (var existing in _sessions.Where(s => s.Value.UserId == user.Id).ToList())
-            _sessions.TryRemove(existing.Key, out _);
-
         DateTime now = _utcNow();
-        var session = new UserSession(user.Id, user.Role, GenerateToken(), now, now.Add(_sessionDuration));
+        var session = new UserSession(user.Id, user.Role, GenerateToken(), now,
+            _sessionDuration.HasValue ? now.Add(_sessionDuration.Value) : null);
         _sessions[session.SessionToken] = session;
         return session;
     }

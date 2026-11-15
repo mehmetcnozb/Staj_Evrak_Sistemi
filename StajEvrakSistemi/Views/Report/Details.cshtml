@@ -112,6 +112,24 @@
     </section>
 }
 
+@if (admin && document is not null && application.Status == ApplicationStatus.Completed)
+{
+    <section class="card">
+        <h2>Tamamlanan Ek-16 belgesi</h2>
+        <p>Belge değiştirilir veya silinirse mevcut onay kaldırılır ve başvuru yeniden incelemeye açılır.</p>
+        <form asp-action="ReplaceDocument" asp-route-id="@application.Id" method="post" enctype="multipart/form-data">
+            <input type="hidden" name="documentId" value="@document.Id" />
+            <label for="replacement-file">Yeni Ek-16 dosyası</label>
+            <input type="file" id="replacement-file" name="file" accept="@Ek16Upload.AcceptedExtensions" required />
+            <button type="submit">Belgeyi değiştir</button>
+        </form>
+        <form asp-action="DeleteDocument" asp-route-id="@application.Id" method="post">
+            <input type="hidden" name="documentId" value="@document.Id" />
+            <button type="submit" class="button attention">Belgeyi sil</button>
+        </form>
+    </section>
+}
+
 @if (Model.History.Count > 0)
 {
     <section class="card">

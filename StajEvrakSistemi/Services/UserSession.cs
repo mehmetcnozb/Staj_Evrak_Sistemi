@@ -10,7 +10,7 @@ public sealed record UserSession(
     UserRole Role,
     string SessionToken,
     DateTime LoginTime,
-    DateTime ExpiresAt)
+    DateTime? ExpiresAt = null)
 {
-    public bool IsExpired(DateTime nowUtc) => nowUtc >= ExpiresAt;
+    public bool IsExpired(DateTime nowUtc) => ExpiresAt.HasValue && nowUtc >= ExpiresAt.Value;
 }

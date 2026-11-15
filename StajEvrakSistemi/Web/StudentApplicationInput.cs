@@ -69,8 +69,6 @@ public sealed class StudentApplicationInput : IValidatableObject
             yield return new ValidationResult("Geçerli bir Türkiye telefon numarası yazın. Örnek: +90 555 123 45 67.", [nameof(Phone)]);
         if (!FormatValidator.IsValidEmail(Email))
             yield return new ValidationResult("Geçerli bir e-posta adresi yazın.", [nameof(Email)]);
-        if (!string.IsNullOrWhiteSpace(Fax) && FormatValidator.NormalizeTurkishPhone(Fax) is null)
-            yield return new ValidationResult("Geçerli bir Türkiye faks numarası yazın. Örnek: +90 262 123 45 67.", [nameof(Fax)]);
     }
 
     internal static StudentApplicationInput FromApplication(InternshipApplication application) => new()
@@ -104,7 +102,7 @@ public sealed class StudentApplicationInput : IValidatableObject
         Address = Address,
         Phone = FormatValidator.NormalizeTurkishPhone(Phone),
         Email = Email,
-        Fax = FormatValidator.NormalizeTurkishPhone(Fax),
+        Fax = Fax,
         WorkDays = WorkDays,
         EngineerCount = EngineerCount!.Value,
         EngineerGraduationDepartment = EngineerGraduationDepartment,

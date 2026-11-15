@@ -38,18 +38,22 @@ public class DocumentService
     /// <exception cref="ForbiddenAccessException">Öğrenci değil ya da başkasının başvurusu.</exception>
     /// <exception cref="InvalidOperationException">Başvurunun statüsü değişikliğe izin vermiyor.</exception>
     public Ek16Document UploadDocument(User student, int internshipId, string sourceFilePath)
+        => StoreDocument(student, internshipId, sourceFilePath, replaceDocumentId: null);
+
+    public Ek16Document ReplaceCompletedDocument(User admin, int internshipId, int documentId, string sourceFilePath)
+        => StoreDocument(admin, internshipId, sourceFilePath, documentId);
+
+    private Ek16Document StoreDocument(User user, int internshipId, string sourceFilePath, int? replaceDocumentId)
     {
-        if (student is null)
+        if (user is null)
             throw new LoginRequiredException("Evrak yüklemek için giriş yapmalısınız.");
-        if (!student.HasPermission(Permission.UploadDocument))
+        if (replaceDocumentId is null && !user.HasPermission(Permission.UploadDocument))
             throw new ForbiddenAccessException("403 Yetkisiz Erişim: Evrağı yalnızca öğrenci yükleyebilir.");
+        if (replaceDocumentId is not null && user.Role != UserRole.Admin)
+            throw new ForbiddenAccessException("Tamamlanan belgeyi yalnızca yönetici değiştirebilir.");
 
-        // Rol veritabanından doğrulanır; sahiplik ve statü kısıtı (kilitli statüde yükleme yok) kontrol edilir.
-        _engine.ValidateUpdateOperation(internshipId, student);
-
+        _engine.ValidateUpdateOperation(internshipId, user);
         DateTime uploadedAt = _utcNow();
-        using (var connection = _database.GetConnection())
-            ValidateUploadDates(connection, null, internshipId, uploadedAt);
 
         var candidate = new Ek16Document(internshipId, sourceFilePath);
         var errors = candidate.GetValidationErrors();
@@ -66,9 +70,10 @@ public class DocumentService
         {
             using var connection = _database.GetConnection();
             using var transaction = connection.BeginTransaction();
-            // Dosya kopyalanırken durum veya tarihler değişmişse güncel kayıt kontrol edilir.
-            var status = _engine.ValidateUpdateOperation(connection, transaction, internshipId, student);
-            ValidateUploadDates(connection, transaction, internshipId, uploadedAt);
+            var status = _engine.ValidateUpdateOperation(connection, transaction, internshipId, user);
+            string? replacedPath = replaceDocumentId is int documentId
+                ? FindCompletedDocument(connection, transaction, status, internshipId, documentId) : null;
+
             using var command = connection.CreateCommand();
             command.Transaction = transaction;
             command.CommandText = """
@@ -83,13 +88,20 @@ public class DocumentService
             command.Parameters.AddWithValue("$uploadedAt", document.UploadedAt.ToString("o", CultureInfo.InvariantCulture));
             document.Id = Convert.ToInt32(command.ExecuteScalar(), CultureInfo.InvariantCulture);
             InvalidateVerification(connection, transaction, internshipId);
-            if (status == ApplicationStatus.FaultyOrMissing)
-                _engine.ChangeStatus(connection, transaction, internshipId, ApplicationStatus.Uploaded, student, "Belge yeniden yüklendi.");
+            if (replaceDocumentId is int oldId)
+            {
+                DeleteDocumentRow(connection, transaction, oldId);
+                _engine.ReopenAfterDocumentChange(connection, transaction, internshipId, user, "Yönetici tamamlanan Ek-16 belgesini değiştirdi.");
+            }
+            else if (status == ApplicationStatus.FaultyOrMissing)
+                _engine.ChangeStatus(connection, transaction, internshipId, ApplicationStatus.Uploaded, user, "Belge yeniden yüklendi.");
             transaction.Commit();
+            if (replacedPath is not null)
+                RemoveStoredFile(replacedPath);
         }
         catch
         {
-            File.Delete(destination);   // kayıt yazılamadıysa yetim dosya bırakma
+            RemoveStoredFile(destination);
             throw;
         }
 
@@ -219,70 +231,77 @@ public class DocumentService
     /// <summary>
     /// Belgeyi siler (kayıt ve dosya). Başvuruyu silmeyle aynı kurallara tabidir: öğrenci Tamamlandı'da silemez, Admin silebilir.
     /// </summary>
-    public void DeleteDocument(User user, int documentId)
+    public void DeleteDocument(User user, int documentId, int? completedApplicationId = null)
     {
         if (user is null)
             throw new LoginRequiredException("Evrak silmek için giriş yapmalısınız.");
+        if (completedApplicationId is not null && user.Role != UserRole.Admin)
+            throw new ForbiddenAccessException("Tamamlanan belgeyi yalnızca yönetici silebilir.");
 
         using var connection = _database.GetConnection();
-
+        using var transaction = connection.BeginTransaction();
         using var find = connection.CreateCommand();
+        find.Transaction = transaction;
         find.CommandText = "SELECT InternshipId, FilePath FROM Documents WHERE Id = $id;";
         find.Parameters.AddWithValue("$id", documentId);
 
         int internshipId;
         string filePath;
-        using (var reader = find.ExecuteReader())
+        using (var row = find.ExecuteReader())
         {
-            if (!reader.Read())
+            if (!row.Read())
                 throw new KeyNotFoundException($"#{documentId} numaralı belge bulunamadı.");
-            internshipId = reader.GetInt32(0);
-            filePath = reader.GetString(1);
+            internshipId = row.GetInt32(0);
+            filePath = row.GetString(1);
         }
 
-        _engine.ValidateDeleteOperation(internshipId, user);
+        var status = _engine.ValidateDeleteOperation(connection, transaction, internshipId, user);
+        if (completedApplicationId is int expectedId)
+            FindCompletedDocument(connection, transaction, status, expectedId, documentId);
 
-        using var transaction = connection.BeginTransaction();
+        DeleteDocumentRow(connection, transaction, documentId);
+        InvalidateVerification(connection, transaction, internshipId);
+        if (status is ApplicationStatus.Approved or ApplicationStatus.Completed)
+            _engine.ReopenAfterDocumentChange(connection, transaction, internshipId, user, "Yönetici Ek-16 belgesini sildi.");
+        transaction.Commit();
+
+        RemoveStoredFile(filePath);
+    }
+
+    private static string FindCompletedDocument(SqliteConnection connection, SqliteTransaction transaction,
+        ApplicationStatus status, int internshipId, int documentId)
+    {
+        if (status != ApplicationStatus.Completed)
+            throw new InvalidOperationException("Bu işlem yalnızca tamamlanmış başvuruda yapılabilir.");
+        using var latest = connection.CreateCommand();
+        latest.Transaction = transaction;
+        latest.CommandText = """
+            SELECT Id, FilePath FROM Documents WHERE InternshipId = $id AND DocumentType = 'Ek16'
+            ORDER BY Id DESC LIMIT 1;
+            """;
+        latest.Parameters.AddWithValue("$id", internshipId);
+        using var row = latest.ExecuteReader();
+        if (!row.Read() || row.GetInt32(0) != documentId)
+            throw new InvalidOperationException("Son Ek-16 belgesi değişti. Sayfayı yenileyin.");
+        return row.GetString(1);
+    }
+
+    private static void DeleteDocumentRow(SqliteConnection connection, SqliteTransaction transaction, int documentId)
+    {
         using var delete = connection.CreateCommand();
         delete.Transaction = transaction;
         delete.CommandText = "DELETE FROM Documents WHERE Id = $id;";
         delete.Parameters.AddWithValue("$id", documentId);
         delete.ExecuteNonQuery();
-        InvalidateVerification(connection, transaction, internshipId);
-        transaction.Commit();
-
-        try { File.Delete(filePath); }
-        catch (IOException) { /* kayıt silindi; dosya başka işlem tarafından kullanılıyorsa yetim kalabilir */ }
     }
 
-    private static void ValidateUploadDates(
-        SqliteConnection connection, SqliteTransaction? transaction, int internshipId, DateTime uploadedAt)
+    private static void RemoveStoredFile(string path)
     {
-        using var command = connection.CreateCommand();
-        command.Transaction = transaction;
-        command.CommandText = "SELECT AcademicYear, StartDate, EndDate, Semester FROM Internships WHERE Id = $id;";
-        command.Parameters.AddWithValue("$id", internshipId);
-        using var reader = command.ExecuteReader();
-        if (!reader.Read())
-            throw new KeyNotFoundException("Belgenin ait oldugu basvuru bulunamadi.");
-
-        if (!DateTime.TryParseExact(reader.GetString(1), "yyyy-MM-dd", CultureInfo.InvariantCulture,
-                DateTimeStyles.None, out DateTime startDate)
-            || !DateTime.TryParseExact(reader.GetString(2), "yyyy-MM-dd", CultureInfo.InvariantCulture,
-                DateTimeStyles.None, out DateTime endDate))
-            throw new DocumentValidationException(new[] { "Basvurunun kayitli staj tarihleri okunamadi." });
-
-        var application = new InternshipApplication
+        try { File.Delete(path); }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException)
         {
-            AcademicYear = reader.GetString(0), StartDate = startDate, EndDate = endDate,
-            Semester = reader.IsDBNull(3) ? null : reader.GetString(3)
-        };
-        var calendar = InternshipDateValidator.IsAcademicYearValid(application.AcademicYear)
-            ? AcademicCalendars.GetForAcademicYear(application.AcademicYear) : AcademicCalendars.Current;
-        var errors = InternshipDateValidator.GetApplicationErrors(application, calendar).ToList();
-        errors.AddRange(InternshipDateValidator.GetDocumentDeliveryErrors(uploadedAt, startDate));
-        if (errors.Count > 0)
-            throw new DocumentValidationException(errors);
+            // The file is no longer referenced by the database.
+        }
     }
 
     // Belge degisince onceki karsilastirma sonucu yeniden kullanilamaz.
@@ -290,7 +309,17 @@ public class DocumentService
     {
         using var command = connection.CreateCommand();
         command.Transaction = transaction;
-        command.CommandText = "UPDATE Internships SET Ek16Verified = 0, Ek16VerifiedAt = NULL WHERE Id = $id;";
+        command.CommandText = """
+            UPDATE Internships SET Ek16Verified = 0, Ek16VerifiedAt = NULL WHERE Id = $id;
+            UPDATE Documents SET IsApproved = 0, RejectionReason = NULL,
+                StudentFieldsVerified = 0, StudentFieldsVerifiedAt = NULL,
+                InternshipFieldsVerified = 0, InternshipFieldsVerifiedAt = NULL,
+                ContactFieldsVerified = 0, ContactFieldsVerifiedAt = NULL,
+                ApplicationFieldsVerified = 0, ApplicationFieldsVerifiedAt = NULL,
+                StudentApprovalPresent = NULL, AdvisorApprovalPresent = NULL, EmployerFieldsComplete = NULL,
+                EmployerStampPresent = NULL, EmployerSignaturePresent = NULL, ApprovalReviewedAt = NULL,
+                ApprovalReviewedByUserId = NULL WHERE InternshipId = $id;
+            """;
         command.Parameters.AddWithValue("$id", internshipId);
         command.ExecuteNonQuery();
     }

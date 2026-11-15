@@ -24,11 +24,7 @@
         </div>
         <div>
             <label asp-for="Semester"></label>
-            <select asp-for="Semester" required>
-                <option value="">Yarıyıl seçin</option>
-                <option value="Guz">Güz</option>
-                <option value="Bahar">Bahar</option>
-            </select>
+            <input asp-for="Semester" placeholder="Guz veya Bahar" required />
             <span asp-validation-for="Semester"></span>
         </div>
         <div>
@@ -71,7 +67,7 @@
         </div>
         <div>
             <label asp-for="Fax"></label>
-            <input asp-for="Fax" type="tel" placeholder="+90 262 123 45 67" aria-describedby="fax-error" />
+            <input asp-for="Fax" type="tel" aria-describedby="fax-error" />
             <span id="fax-error" asp-validation-for="Fax"></span>
         </div>
     </div>

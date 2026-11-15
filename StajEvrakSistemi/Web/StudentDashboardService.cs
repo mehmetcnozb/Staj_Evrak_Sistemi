@@ -51,10 +51,7 @@ public sealed class StudentDashboardService
         bool statusAllowsChanges = _workflow.CanModifyOrDelete(application.Status, student);
         DateTime? latestSubmission = InternshipDateValidator.GetLatestSubmissionDate(application.StartDate);
 
-        // Yukleme sirasinda sunucu da ayni fonksiyonla bakar (DocumentService); bu yuzden ekrandaki durum
-        // ile sunucu kurali ayrismaz: son teslim gecmisse belge yuklenemez.
         bool deadlinePassed = statusAllowsChanges && !InternshipDateValidator.IsSubmissionOnTime(today, application.StartDate);
-        bool canUpload = statusAllowsChanges && !deadlinePassed;
 
         string? correctionNote = application.Status == ApplicationStatus.FaultyOrMissing
             ? StudentCorrection.GetReason(application.Status, _workflow.GetHistory(application.Id), documents.LastOrDefault())
@@ -66,7 +63,7 @@ public sealed class StudentDashboardService
             StatusCssClass(application.Status),
             latestSubmission,
             documents.Count > 0,
-            canUpload,
+            statusAllowsChanges,
             deadlinePassed,
             correctionNote);
     }

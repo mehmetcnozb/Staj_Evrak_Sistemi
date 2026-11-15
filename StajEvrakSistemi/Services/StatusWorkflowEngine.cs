@@ -127,6 +127,14 @@ public class StatusWorkflowEngine
     public void ValidateDeleteOperation(int applicationId, User currentUser) =>
         ValidateModification(applicationId, currentUser, ModificationKind.Delete);
 
+    internal ApplicationStatus ValidateDeleteOperation(SqliteConnection connection, SqliteTransaction transaction,
+        int applicationId, User currentUser) =>
+        ValidateModification(connection, transaction, applicationId, currentUser, ModificationKind.Delete);
+
+    internal void ReopenAfterDocumentChange(SqliteConnection connection, SqliteTransaction transaction,
+        int applicationId, User admin, string note) =>
+        ChangeStatus(connection, transaction, applicationId, ApplicationStatus.Uploaded, admin, note, documentChanged: true);
+
     /// <summary>
     /// Başvurunun statüsünü değiştirir ve geçişi kaydeder.
     /// Kontrol sirasi: giris -> yetki ve sahiplik -> akis kurali -> gerekce -> onay ve tamamlanma kontrolleri.
@@ -161,16 +169,20 @@ public class StatusWorkflowEngine
     }
 
     internal StatusTransitionLog ChangeStatus(SqliteConnection connection, SqliteTransaction transaction,
-        int applicationId, ApplicationStatus newStatus, User currentUser, string note)
+        int applicationId, ApplicationStatus newStatus, User currentUser, string note, bool documentChanged = false)
     {
         EnsureUserInDatabase(connection, transaction, currentUser);
 
         var application = LoadApplication(connection, transaction, applicationId)
             ?? throw new KeyNotFoundException($"#{applicationId} numaralı staj başvurusu bulunamadı.");
 
-        EnsureAuthorized(currentUser, newStatus, application);
+        bool reopen = documentChanged && currentUser.Role == UserRole.Admin
+            && newStatus == ApplicationStatus.Uploaded
+            && application.Status is ApplicationStatus.Approved or ApplicationStatus.Completed;
+        if (!reopen)
+            EnsureAuthorized(currentUser, newStatus, application);
 
-        if (!CanTransition(application.Status, newStatus))
+        if (!reopen && !CanTransition(application.Status, newStatus))
         {
             var allowed = GetAllowedTransitions(application.Status);
             string hint = allowed.Count == 0

@@ -4,6 +4,8 @@
 
 **İncelenen kod sürümü** `a609b90`
 
+Bu sayfa ve diyagram, belirtilen surumdeki akisi gosterir. Guncel vize akisi icin [README](../README.md) dosyasina bakin.
+
 ## Akış diyagramı
 
 ![Ek-16 başvurusunun kaydı, yükleme, Admin incelemesi, düzeltme ve tamamlama akışı](ek16-akis.svg)

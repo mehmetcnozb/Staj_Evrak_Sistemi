@@ -19,7 +19,6 @@ if (createAdmin)
     return;
 }
 
-builder.WebHost.ConfigureKestrel(options => options.Limits.MaxRequestBodySize = 12 * 1024 * 1024);
 builder.Services.AddSingleton(database);
 builder.Services.AddSingleton<AuthService>();
 builder.Services.AddSingleton<SessionManager>();
@@ -27,6 +26,7 @@ builder.Services.AddSingleton<StatusWorkflowEngine>();
 builder.Services.AddSingleton<InternshipService>();
 builder.Services.AddSingleton<DatasetImportService>();
 builder.Services.AddSingleton<Ek16MatcherService>();
+builder.Services.AddSingleton<Ek16DocumentReader>();
 builder.Services.AddSingleton(services => new DocumentService(database,
     services.GetRequiredService<StatusWorkflowEngine>(), Path.Combine(dataDirectory, "uploads")));
 builder.Services.AddSingleton<StudentDashboardService>();

@@ -30,14 +30,10 @@ public sealed class AdminController(
     }
 
     [HttpPost]
-    [RequestSizeLimit(DatasetImportService.MaxFileSizeBytes + 64 * 1024)]
     public async Task<IActionResult> ImportDataset(IFormFile? dataset, CancellationToken cancellationToken)
     {
         if (dataset is null || dataset.Length == 0)
             return Dashboard(error: "Yüklemek için bir veri seti dosyası seçin.");
-
-        if (dataset.Length > DatasetImportService.MaxFileSizeBytes)
-            return Dashboard(error: "Veri seti dosyası en fazla 10 MB olabilir.");
 
         string extension = Path.GetExtension(dataset.FileName).ToLowerInvariant();
         if (extension is not (".csv" or ".json"))

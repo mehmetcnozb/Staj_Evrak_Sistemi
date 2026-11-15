@@ -1,12 +1,9 @@
-using System.Globalization;
 using StajEvrakSistemi.Models;
 
 namespace StajEvrakSistemi.Core;
 
 public static class ContactDocumentValidator
 {
-    private static readonly CultureInfo Turkish = CultureInfo.GetCultureInfo("tr-TR");
-
     public static IReadOnlyList<Ek16Discrepancy> GetApplicationErrors(InternshipApplication application)
     {
         ArgumentNullException.ThrowIfNull(application);
@@ -14,7 +11,6 @@ public static class ContactDocumentValidator
         CheckFormat(errors, Ek16Field.Address, application.Address, "Basvurudaki", isApplication: true);
         CheckFormat(errors, Ek16Field.Phone, application.Phone, "Basvurudaki", isApplication: true);
         CheckFormat(errors, Ek16Field.Email, application.Email, "Basvurudaki", isApplication: true);
-        CheckFormat(errors, Ek16Field.Fax, application.Fax, "Basvurudaki", isApplication: true);
         return errors;
     }
 
@@ -30,7 +26,8 @@ public static class ContactDocumentValidator
             (Ek16Field.Fax, application.Fax, scanned.Fax)
         })
         {
-            CheckFormat(errors, field, document, "Belgedeki");
+            if (field != Ek16Field.Fax)
+                CheckFormat(errors, field, document, "Belgedeki");
             CompareValue(errors, field, form, document, "belge");
         }
         return errors;
@@ -66,8 +63,7 @@ public static class ContactDocumentValidator
             Ek16Field.Address => FormatValidator.IsValidAddress(value),
             Ek16Field.Phone => FormatValidator.IsValidTurkishPhone(value),
             Ek16Field.Email => FormatValidator.IsValidEmail(value),
-            Ek16Field.Fax => FormatValidator.IsValidOptionalFax(value),
-            _ => false
+            _ => throw new ArgumentOutOfRangeException(nameof(field))
         };
         if (valid)
             return;
@@ -76,7 +72,7 @@ public static class ContactDocumentValidator
             Ek16Field.Address => "adres mahalle, cadde/sokak, bina no, daire no ve ilce/il sirasiyla tam olmali",
             Ek16Field.Phone => "telefon zorunlu ve +90 xxx xxx xx xx biciminde olmali",
             Ek16Field.Email => "e-posta zorunlu ve gecerli bicimde olmali",
-            _ => "faks bos birakilabilir; girilmisse +90 xxx xxx xx xx biciminde olmali"
+            _ => throw new ArgumentOutOfRangeException(nameof(field))
         };
         errors.Add(new(field, isApplication ? value : null, isApplication ? null : value, $"{source} {rule}."));
     }
@@ -94,8 +90,7 @@ public static class ContactDocumentValidator
         if (field == Ek16Field.Email)
             return text.ToUpperInvariant();
         if (field == Ek16Field.Address)
-            return string.Join(' ', text.Replace(',', ' ').Split((char[]?)null,
-                StringSplitOptions.RemoveEmptyEntries)).ToUpper(Turkish);
+            return FormatValidator.NormalizeAddress(text);
         return text;
     }
 

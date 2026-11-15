@@ -8,8 +8,6 @@ namespace StajEvrakSistemi.Models;
 /// </summary>
 public class Ek16Document : BaseDocument
 {
-    public const long MaxFileSizeBytes = 10 * 1024 * 1024;
-
     /// <summary>
     /// Kullaniciya gosterilen kabul edilen format listesi (panel bilgi kutusu icin).
     /// </summary>
@@ -73,8 +71,6 @@ public class Ek16Document : BaseDocument
         long size = new FileInfo(FilePath).Length;
         if (size == 0)
             errors.Add("Dosya boş.");
-        else if (size > MaxFileSizeBytes)
-            errors.Add($"Dosya çok büyük (en fazla {MaxFileSizeBytes / 1024 / 1024} MB).");
         else if (formatAllowed && !HasMatchingFileSignature())
             errors.Add($"Dosya içeriği '.{FileFormat}' uzantısıyla uyuşmuyor.");
 

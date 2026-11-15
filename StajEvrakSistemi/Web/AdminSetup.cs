@@ -14,7 +14,7 @@ internal static class AdminSetup
         string identity = Console.ReadLine() ?? "";
         Console.Write("Yönetici e-postası: ");
         string email = Console.ReadLine() ?? "";
-        Console.Write("Yönetici şifresi (en az 8 karakter): ");
+        Console.Write("Yönetici şifresi: ");
         string password = ReadPassword();
         Console.WriteLine();
 

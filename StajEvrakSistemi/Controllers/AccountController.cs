@@ -33,8 +33,8 @@ public sealed class AccountController(AuthService auth, SessionManager sessions)
         if (result.User is not { } user)
         {
             ModelState.AddModelError(string.Empty, result.Status == LoginStatus.LockedOut
-                ? $"Hesap geçici olarak kilitli. {Math.Ceiling(result.RemainingLockout?.TotalMinutes ?? 15)} dakika sonra tekrar deneyin."
-                : "Giriş bilgileri veya şifre hatalı.");
+                ? "Hesap kilitli."
+                : "Giris bilgileri veya sifre hatali.");
             return View(input);
         }
 
@@ -49,7 +49,7 @@ public sealed class AccountController(AuthService auth, SessionManager sessions)
         }, CookieAuthenticationDefaults.AuthenticationScheme);
         await HttpContext.SignInAsync(new ClaimsPrincipal(identity), new AuthenticationProperties
         {
-            ExpiresUtc = new DateTimeOffset(session.ExpiresAt)
+            ExpiresUtc = session.ExpiresAt
         });
 
         return Url.IsLocalUrl(input.ReturnUrl) ? LocalRedirect(input.ReturnUrl!) : RedirectToAction(nameof(Index));

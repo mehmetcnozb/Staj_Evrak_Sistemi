@@ -60,7 +60,6 @@ public class DatabaseManager
 
         // Eski veritabanı dosyalarına sonradan eklenen sütunlar (yeni dosyalarda zaten vardır).
         EnsureColumn(connection, transaction, "Users", "FailedLoginAttempts", "INTEGER NOT NULL DEFAULT 0");
-        EnsureColumn(connection, transaction, "Users", "LockoutEnd", "TEXT");
         EnsureColumn(connection, transaction, "Users", "IsForeign", "INTEGER NOT NULL DEFAULT 0 CHECK (IsForeign IN (0, 1))");
 
         EnsureColumn(connection, transaction, "Internships", "Department", "TEXT");
@@ -168,7 +167,6 @@ public class DatabaseManager
             Role            TEXT    NOT NULL CHECK (Role IN ('Student', 'Admin')),
             CreatedAt       TEXT    NOT NULL DEFAULT (datetime('now')),
             FailedLoginAttempts INTEGER NOT NULL DEFAULT 0,
-            LockoutEnd      TEXT,
             IsForeign       INTEGER NOT NULL DEFAULT 0 CHECK (IsForeign IN (0, 1))
         );
         """;

@@ -32,8 +32,6 @@ public class OfficialStudentRecord
         string? healthAidStatus = null)
     {
         StudentNumber = Require(studentNumber, nameof(StudentNumber));
-        if (!StudentNumber.All(char.IsAsciiLetterOrDigit))
-            throw new ArgumentException($"Öğrenci numarası geçersiz: {studentNumber}", nameof(studentNumber));
 
         Nationality = Require(nationality, nameof(Nationality));
 
@@ -52,7 +50,7 @@ public class OfficialStudentRecord
         if (!IsValidAcademicYear(AcademicYear))
             throw new ArgumentException($"Öğretim yılı 2025-2026 biçiminde olmalı: {academicYear}", nameof(academicYear));
 
-        if (birthDate is { } birth && (birth > DateTime.Today || birth.Year < 1900))
+        if (birthDate is { } birth && birth.Date > DateTime.Today)
             throw new ArgumentException($"Doğum tarihi geçersiz: {birth:dd.MM.yyyy}", nameof(birthDate));
         BirthDate = birthDate?.Date;
 

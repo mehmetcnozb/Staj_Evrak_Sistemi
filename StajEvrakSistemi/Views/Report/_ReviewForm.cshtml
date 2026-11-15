@@ -1,47 +1,39 @@
 @model ApplicationReport
 @{
+    var fields = Model.ReadFields!;
     var turkey = System.Globalization.CultureInfo.GetCultureInfo("tr-TR");
-    DayOfWeek[] week = [DayOfWeek.Monday, DayOfWeek.Tuesday, DayOfWeek.Wednesday, DayOfWeek.Thursday,
-        DayOfWeek.Friday, DayOfWeek.Saturday, DayOfWeek.Sunday];
+    (string Label, string? Value)[] entries = [
+        ("Ad soyad", fields.FullName), ("Öğrenci numarası", fields.StudentNumber),
+        ("Kimlik numarası", fields.IdentityNumber), ("Bölüm", fields.Department),
+        ("Öğretim yılı", fields.AcademicYear), ("Yarıyıl", fields.Semester),
+        ("Staj başlangıcı", fields.StartDate?.ToString("dd.MM.yyyy")),
+        ("Staj bitişi", fields.EndDate?.ToString("dd.MM.yyyy")),
+        ("Staj günü", fields.DeclaredWorkDays?.ToString("0.##", turkey)),
+        ("İşyeri adı", fields.CompanyName), ("Mühendis sayısı", fields.EngineerCount?.ToString()),
+        ("İkametgâh adresi", fields.Address), ("Telefon", fields.Phone), ("E-posta", fields.Email),
+        ("Faks", fields.Fax), ("Doğum tarihi", fields.BirthDate?.ToString("dd.MM.yyyy")),
+        ("Önceki staj günü", fields.PreviousInternshipDays?.ToString()), ("Sağlık yardımı statüsü", fields.HealthAidStatus), ("Çalışma günleri", fields.WorkDays is null ? null
+            : string.Join(", ", fields.WorkDays.Select(turkey.DateTimeFormat.GetDayName)))
+    ];
 }
 <section class="card">
-    <h2>Ek-16 incelemesi</h2>
-    <p>Son yüklenen belgedeki değerleri elle girin. Okunamayan veya boş alanları boş bırakın.</p>
+    <h2>Ek-16 belgesinden okunan alanlar</h2>
+    @if (Model.ReadError is { } error)
+    {
+        <p class="notice error">@error</p>
+    }
+    else
+    {
+        <dl class="details-grid">
+            @foreach (var (label, value) in entries)
+            {
+                <div><dt>@label</dt><dd>@(value ?? "—")</dd></div>
+            }
+        </dl>
+    }
     <form asp-action="Review" asp-route-id="@Model.Application.Id" method="post">
         <div asp-validation-summary="All" role="alert"></div>
         <input asp-for="Review.DocumentId" type="hidden" />
-        <div class="form-grid">
-            <label>@Html.DisplayNameFor(m => m.Review.FullName)<input asp-for="Review.FullName" /></label>
-            <label>@Html.DisplayNameFor(m => m.Review.StudentNumber)<input asp-for="Review.StudentNumber" spellcheck="false" /></label>
-            <label>@Html.DisplayNameFor(m => m.Review.IdentityNumber)<input asp-for="Review.IdentityNumber" inputmode="numeric" /></label>
-            <label>@Html.DisplayNameFor(m => m.Review.Department)<input asp-for="Review.Department" /></label>
-            <label>@Html.DisplayNameFor(m => m.Review.AcademicYear)<input asp-for="Review.AcademicYear" placeholder="2026-2027" /></label>
-            <label>
-                @Html.DisplayNameFor(m => m.Review.Semester)
-                <select asp-for="Review.Semester">
-                    <option value="">Belirtilmemiş</option><option value="Guz">Güz</option><option value="Bahar">Bahar</option>
-                </select>
-            </label>
-            <label>@Html.DisplayNameFor(m => m.Review.StartDate)<input asp-for="Review.StartDate" type="date" /></label>
-            <label>@Html.DisplayNameFor(m => m.Review.EndDate)<input asp-for="Review.EndDate" type="date" /></label>
-            <label>@Html.DisplayNameFor(m => m.Review.DeclaredWorkDays)<input asp-for="Review.DeclaredWorkDays" type="number" step="0.5" min="0" /></label>
-            <label>@Html.DisplayNameFor(m => m.Review.CompanyName)<input asp-for="Review.CompanyName" /></label>
-            <label>@Html.DisplayNameFor(m => m.Review.EngineerCount)<input asp-for="Review.EngineerCount" type="number" min="0" /></label>
-            <label>@Html.DisplayNameFor(m => m.Review.Address)<input asp-for="Review.Address" /></label>
-            <label>@Html.DisplayNameFor(m => m.Review.Phone)<input asp-for="Review.Phone" type="tel" /></label>
-            <label>@Html.DisplayNameFor(m => m.Review.Email)<input asp-for="Review.Email" /></label>
-            <label>@Html.DisplayNameFor(m => m.Review.Fax)<input asp-for="Review.Fax" type="tel" /></label>
-        </div>
-        <fieldset>
-            <legend>Belgede belirtilen çalışma günleri</legend>
-            @foreach (var day in week)
-            {
-                <label class="choice">
-                    <input type="checkbox" name="Review.WorkDays" value="@day" checked="@Model.Review.WorkDays.Contains(day)" />
-                    @turkey.DateTimeFormat.GetDayName(day)
-                </label>
-            }
-        </fieldset>
         <fieldset>
             <legend>Onay ve imza alanları</legend>
             <div class="form-grid">
@@ -72,6 +64,6 @@
                 </label>
             </div>
         </fieldset>
-        <button type="submit">İnceleme sonucunu kaydet</button>
+        <button type="submit">Form ve veri setiyle karşılaştır</button>
     </form>
 </section>

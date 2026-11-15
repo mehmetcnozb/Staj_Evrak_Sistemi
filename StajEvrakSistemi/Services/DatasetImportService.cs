@@ -16,8 +16,6 @@ namespace StajEvrakSistemi.Services;
 /// </summary>
 public class DatasetImportService
 {
-    public const long MaxFileSizeBytes = 10 * 1024 * 1024;
-
     private enum Field
     {
         StudentNumber,
@@ -202,8 +200,8 @@ public class DatasetImportService
         var file = new FileInfo(filePath ?? throw new ArgumentNullException(nameof(filePath)));
         if (!file.Exists)
             throw new FileNotFoundException("Veri seti dosyası bulunamadı.", filePath);
-        if (file.Length == 0 || file.Length > MaxFileSizeBytes)
-            throw new InvalidDataException($"Veri seti dosyası boş olamaz ve en fazla {MaxFileSizeBytes / 1024 / 1024} MB olabilir.");
+        if (file.Length == 0)
+            throw new InvalidDataException("Veri seti dosyasi bos olamaz.");
 
         return file.Extension.ToLowerInvariant() switch
         {
@@ -357,7 +355,7 @@ public class DatasetImportService
         try
         {
             if (!FormatValidator.IsValidStudentNumber(Get(Field.StudentNumber)))
-                throw new ArgumentException("Ogrenci numarasi yalnizca harf ve rakamlardan olusmali.");
+                throw new ArgumentException("Ogrenci numarasi bos olamaz.");
             if (!string.IsNullOrWhiteSpace(Get(Field.Email)) && !FormatValidator.IsValidEmail(Get(Field.Email)))
                 throw new ArgumentException("Veri setindeki e-posta bicimi gecersiz.");
             if (!string.IsNullOrWhiteSpace(Get(Field.Phone)) && !FormatValidator.IsValidTurkishPhone(Get(Field.Phone)))

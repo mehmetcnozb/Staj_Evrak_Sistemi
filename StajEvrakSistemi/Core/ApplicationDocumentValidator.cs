@@ -12,7 +12,7 @@ public static class ApplicationDocumentValidator
         ArgumentNullException.ThrowIfNull(application);
         var errors = new List<Ek16Discrepancy>();
         if (InternshipDateValidator.NormalizeSemester(application.Semester) is null)
-            errors.Add(new(Ek16Field.Semester, application.Semester, null, "Basvurunun yariyili Guz veya Bahar olmali."));
+            errors.Add(new(Ek16Field.Semester, application.Semester, null, "Basvurunun yariyil bilgisi bulunmali."));
         if (string.IsNullOrWhiteSpace(application.CompanyName))
             errors.Add(new(Ek16Field.CompanyName, application.CompanyName, null, "Basvuruda isyeri adi bulunmali."));
         foreach (string error in EngineerApprovalValidator.GetEngineerErrors(application))
@@ -28,8 +28,8 @@ public static class ApplicationDocumentValidator
         string? documentSemester = InternshipDateValidator.NormalizeSemester(scanned.Semester);
         if (documentSemester is null)
             errors.Add(new(Ek16Field.Semester, formSemester, scanned.Semester,
-                "Belgenin teslim edildigi yariyil okunamadi veya Guz/Bahar biciminde degil."));
-        else if (formSemester is not null && formSemester != documentSemester)
+                "Belgenin teslim edildigi yariyil okunamadi."));
+        else if (formSemester is not null && !string.Equals(formSemester, documentSemester, StringComparison.OrdinalIgnoreCase))
             errors.Add(new(Ek16Field.Semester, formSemester, documentSemester, "Form ve belgedeki yariyil uyusmuyor."));
 
         if (string.IsNullOrWhiteSpace(scanned.CompanyName))

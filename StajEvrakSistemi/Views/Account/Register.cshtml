@@ -20,7 +20,7 @@
         <div>
             <label asp-for="StudentNumber"></label>
             <input asp-for="StudentNumber" spellcheck="false" aria-describedby="student-number-help student-number-error" required />
-            <small id="student-number-help">Okul numaranızı harf ve rakamlarıyla girin.</small>
+            <small id="student-number-help">Okul numaranizi girin.</small>
             <span asp-validation-for="StudentNumber" id="student-number-error"></span>
         </div>
         <label class="full-width inline-control"><input asp-for="IsForeign" /> @Html.DisplayNameFor(m => m.IsForeign)</label>
@@ -32,7 +32,7 @@
         <div class="full-width">
             <label asp-for="Password"></label>
             <div class="password-field">
-                <input asp-for="Password" autocomplete="new-password" minlength="8" required />
+                <input asp-for="Password" autocomplete="new-password" required />
                 <button type="button" class="button quiet password-toggle" data-password-toggle
                         aria-controls="Password" aria-label="Şifreyi göster" hidden>Göster</button>
             </div>

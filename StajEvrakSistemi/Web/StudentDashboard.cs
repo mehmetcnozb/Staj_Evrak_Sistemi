@@ -21,7 +21,7 @@ public sealed record ApplicationSummary(int Total, int Uploaded, int UnderReview
 /// <param name="StatusCssClass">Durum rozeti icin sinif adi: status-uploaded, status-under-review, status-faulty-or-missing, status-approved, status-completed.</param>
 /// <param name="LatestSubmissionDate">Staj baslangicindan 30 gun onceki son teslim tarihi, hesaplanabiliyorsa.</param>
 /// <param name="HasDocument">Basvuruya en az bir Ek-16 yuklenmis mi.</param>
-/// <param name="CanUploadDocument">Evrak Yukle butonu aktif olmali mi: durum degisiklige acik VE son teslim tarihi gecmemis.</param>
+/// <param name="CanUploadDocument">Evrak Yukle butonu aktif olmali mi: durum degisiklige acik.</param>
 /// <param name="SubmissionDeadlinePassed">Durum degisiklige acik ama son teslim tarihi gecmis; belge artik yuklenemez, uyari gosterilmeli.</param>
 /// <param name="CorrectionNote">Hatali/Eksik durumunda yoneticinin yazdigi gerekce; baska durumda null.</param>
 public sealed record StudentApplicationRow(
@@ -69,7 +69,6 @@ public sealed class StudentDashboard
     // Bilgi kutusundaki kurallar sunucudaki sabitlerle ayni kaynaktan gelir.
     public string AcceptedFormatsText => Ek16Document.AcceptedFormatsDescription;
 
-    public int MaxFileSizeMb => (int)(Ek16Document.MaxFileSizeBytes / (1024 * 1024));
 
     public int MinimumLeadDays => Core.InternshipDateValidator.MinimumLeadDays;
 }

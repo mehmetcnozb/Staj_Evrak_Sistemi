@@ -6,17 +6,17 @@ ogrencilerin staj basvurusu icin hazirladigi Ek-16 belgesinin kontrolunu ve taki
 Mevcut ozellikler:
 *kullanici kaydi ve girisi - ogrenciler kendi sifrelerini belirleyerek hesap olusturur. sifreler hashlenerek saklanir
 *kimlik kontrolu           - yeni kayitlarda T.C. kimlik numarasinin 10. ve 11. haneleri kontrol ediliyor. yabanci ogrencilerde 11 hane ve 99 ile baslama kurali kullaniliyor. yeni veri seti aktarimlarinda da bu kontroller yapiliyor.
-*format kontrolleri        - ogrenci numarasi, e-posta, telefon ve adres kontrol ediliyor. basvuruda adres, telefon ve e-posta zorunlu. faks bos birakilabilir, girilmisse bicimi kontrol ediliyor.
-*hesap kitleme             - 5 kez hatali girilince hesap kitleniyor. 15dk sonra tekrar aciliyor. basarisiz girisler kaydediliyor.
+*format kontrolleri        - ogrenci numarasinin dolu olmasi, e-posta, telefon ve adres kontrol ediliyor. basvuruda adres, telefon ve e-posta zorunlu. faks bos birakilabilir; ayri bir bicim zorunlulugu yok.
+*hesap kitleme             - 5 kez hatali girilince hesap kitleniyor. basarisiz girisler kaydediliyor. sureye bagli otomatik kilit acilmasi uygulanmiyor.
 *yetkilendirme             - ogrenci ve admin rolleri bulunuyor. ogrenci sadece kendi belge ve basvurusuna erisebiliyor.
-*oturum yonetimi           - birden fazla kullanici icin oturum olusturma, sure kontrolu, cikis islrmleri
+*oturum yonetimi           - token ile oturum olusturma ve cikis islemleri bulunuyor. varsayilan sabit bir oturum suresi yok. cikis yalnizca secilen oturumu kapatiyor.
 *veri seti aktarimi        - admin, CSV ve JSON dosyalarindan ogrenci bilgilerini iceri aktarabiliyor. hatali satirlar raporlaniyor.Tekrarlanan kayitlarin yeniden eklenmesini onler.
 *basvuru yonetimi          - basvuru olusturma, goruntuleme, guncelleme, silme, islemleri bulunur. admin basvurulari duruma gore listeleyebilir.
 *ek-16 yukleme             - Word, PDF, JPEG ve PNG dosyalari kontrol edilip kaydedilebiliyor.
 *bilgi karsilastirma       - son belgenin ogrenci bilgileri, staj tarihleri, iletisim alanlari, yariyili ve isyeri adi form ile karsilastiriliyor. veri setindeki ogrenci bilgileri ve mevcut iletisim degerleri de kontrol ediliyor. sonuc belgeye kaydediliyor. tek basina veri seti eslesmesi onay vermiyor.
 *muhendis ve onay kontrolu - en az 1 muhendis olmasi kontrol ediliyor. sayi 5'in altindaysa mezuniyet bolumu icin uyari bilgisi hazirlaniyor. belgede ayri muhendis sayisi okunmussa form ile de karsilastiriliyor. adminin son belge icin kaydettigi onay, imza ve kase incelemesi denetleniyor.
-*durum takibi              - degisiklik gecmisi tutuyor. tamamlanan basvurularda ogrencinin degistirmesi engelleniyor. admin degistiriyor.
-*tarih kontrolleri         - ogretim yili, yariyil ve staj tarih araligi kayit ve guncellemede kontrol ediliyor. belge tesliminde en az 30 takvim gunu araniyor. onay ve tamamlanmada belge teslim tarihi tekrar denetleniyor.
+*durum takibi              - degisiklik gecmisi tutuyor. tamamlanan basvurularda ogrencinin form guncellemesi ve silmesi engelleniyor. admin son Ek-16 dosyasini degistirebilir veya silebilir.
+*tarih kontrolleri         - ogretim yili, yariyil ve staj tarih araligi kayit ve guncellemede kontrol ediliyor. inceleme, onay ve tamamlanmada 30 takvim gunu kurali kayitli teslim tarihine gore denetleniyor.
 *staj gunu hesabi          - secilen haftalik gunler ve 2026-2027 resmi tatillerine gore net staj gunu hesaplaniyor. belgedeki baslangic ve bitis form ile karsilastiriliyor. belgede ayri gun sayisi veya calisma gunleri varsa onlar da kontrol ediliyor.
 ---------------------------------------------------------------------------------------------
 Projede kullanilan teknolojiler:
@@ -43,13 +43,16 @@ Yönetici, panelden kurgu öğrenci kayıtlarını içeren örnek CSV'yi indirip
 Öğrenci hesabı giriş ekranından açılır. Öğrenciler e-posta, öğrenci numarası veya kimlik numarasıyla giriş yapabilir. Veri seti eşleştirmesini denemek için CSV'deki
 bir öğrencinin kimlik, öğrenci numarası ve iletişim bilgileriyle bir test hesabı açın.
 
-Öğrenci staj tarihlerini ve haftalık günlerini seçer, başvurusunu kaydeder ve Ek-16 yükler.
-Yönetici belgeyi indirip incelemeyi başlatır. Ek-16 alanlarını ve imza/kaşe durumunu
-elle girdikten sonra karşılaştırma sonucu öğrenciye de görünür. Hata varsa yönetici
-düzeltme ister. Kontrolleri geçen başvuru onaylandığında Tamamlandı sekmesine geçer.
+Ogrenci staj tarihlerini ve haftalik gunlerini secer, formu kaydeder ve Ek-16 yukler.
+Yuklemede dosya bicimi ve uzantisi kontrol ediliyor. JPEG ve PNG yuklenebiliyor.
+Vizede metin iceren PDF, DOC ve DOCX dosyalarindaki etiketli alanlar otomatik okunuyor.
+Inceleme baslatilinca okunan alanlar admin ekraninda gorunuyor. Admin imza ve kase
+durumunu isaretleyip form ve veri setiyle karsilastirmayi kaydediyor. Okunamayan alanlar
+ve uyusmazliklar ogrencinin raporunda listeleniyor. Taranmis belge ve el yazisi icin OCR final kapsaminda.
 
-Google Form alanı HTTPS yanıt bağlantısının biçimini denetler. Vize akışında belge
-incelemesi manuel yapılır.
+Admin Tamamlandi sekmesinden son Ek-16 dosyasini degistirebilir veya silebilir.
+Bu islemler onceki onayi kaldirir. Yeni dosya icin yeni teslim tarihi kaydedilir.
+Google Form alani HTTPS yanit baglantisinin bicimini denetler.
 
 SQLite dosyası ve yüklenen belgeler varsayılan olarak proje klasöründe saklanır.
 Farklı bir yerel veri klasörü için uygulamayı ve yönetici kurulumunu çalıştırmadan önce
@@ -68,8 +71,8 @@ Staj_Evrak_Sistemi/
             ApplicationStatus.cs (Basvurunun alabilecegi durumlari tanimlar. yuklendi, inceleniyor, hatali, Onaylandi ve Tamamlandi)
             DocumentType.cs (Sistemin isledigi belge turlerini tanimlar. su anda yalnizca Ek-16 bulunuyor.)
             IdentityNumberValidator.cs (T.C. kimlik numarasinin bicimini ve 10./11. kontrol hanelerini denetler. yabanci kimlik numarasinda 11 hane ve 99 onekini kontrol eder.)
-            FormatValidator.cs (ogrenci numarasi, e-posta, telefon, adres ve faksi kontrol eder. basvurudaki format hatalarini liste olarak dondurur.)
-            ContactDocumentValidator.cs (formdaki adres, telefon, e-posta ve faksi belgeden okunan degerlerle karsilastirir. alanlarin bicimini de kontrol eder. veri setinde bulunan iletisim bilgileri icin de karsilastirma yapar.)
+            FormatValidator.cs (ogrenci numarasinin dolu olmasini, e-posta, telefon ve adres bicimlerini kontrol eder. basvurudaki format hatalarini liste olarak dondurur.)
+            ContactDocumentValidator.cs (formdaki adres, telefon, e-posta ve faksi belgeden okunan degerlerle karsilastirir. adres, telefon ve e-postanin bicimini de kontrol eder. veri setinde bulunan iletisim bilgileri icin de karsilastirma yapar.)
             EngineerApprovalValidator.cs (muhendis sayisini ve belge onay alanlarini kontrol eder. muhendis sayisi 5'in altindaysa bolum bilgisi icin uyari dondurur.)
             ApplicationDocumentValidator.cs (belgedeki yariyil ve isyeri adini form ile karsilastirir. muhendis sayisi belgeden ayrica okunmussa onu da kontrol eder.)
             Permission.cs (Sistemde yapilabilecek yetkili islemleri-fonksiyonlari tanimlar.)
@@ -108,14 +111,15 @@ Staj_Evrak_Sistemi/
             AuthorizationExceptions.cs	(Giris yapilmamasi ve yetkisiz erisim durumlarinda kullanilacak hata siniflarini tanimlar.)
             DatasetImportService.cs	(Adminin CSV/JSON veri setini okur, kimlik ve ogrenci numarasini kontrol eder. girilmis e-posta, telefon ve adresin bicimini de kontrol eder. hatali satirlar raporlanir, gecerli kayitlar veritabanina aktarilir.)
             DatasetImportResult.cs	(Veri seti aktariminin sonuclarini tasir: eklenen, tekrarlanan ve hatali kayitlar gibi.)
-            DocumentService.cs	(Ek-16 yukleme, listeleme ve silme islemlerini yapar. her yuklemede staj tarihlerini ve 30 gun suresini kontrol eder, teslim zamanini sistem saatinden kaydeder. adminin son belge incelemesini de saklar. belge yuklenince veya silinince eski karsilastirma sonucu sifirlanir.)
-            DocumentValidationException.cs	(Dosya kabul edilmediginde, ornegin formati veya boyutu uygun degilse, hata nedenlerini tasir.)
+            DocumentService.cs	(Ek-16 yukleme, listeleme ve silme islemlerini yapar. yuklemede dosyayi kontrol eder ve teslim zamanini sistem saatinden kaydeder. adminin son belge incelemesini de saklar. belge yuklenince veya silinince eski karsilastirma sonucu sifirlanir.)
+            DocumentValidationException.cs	(Dosya kabul edilmediginde, ornegin formati uygun degilse veya dosya bossa, hata nedenlerini tasir.)
+            Ek16DocumentReader.cs (metin iceren PDF, DOC ve DOCX dosyalarindaki etiketli Ek-16 alanlarini okur.)
             Ek16MatcherService.cs	(kayitli kullanicinin yetkisini ve basvuru sahipligini kontrol eder. referansi basvuru sahibine gore bulur. son belgenin ogrenci alanlarini form ve veri setiyle karsilastirir. staj tarihlerini, gun bilgilerini, iletisim alanlarini, yariyili ve isyeri adini da kontrol eder. okunmussa muhendis sayisini da karsilastirir. tumu uyusursa belgeye bagli dogrulama kaydeder ve hesaplanan net gunu gunceller.)
             InternshipService.cs	(Basvuru olusturma, guncelleme, silme ve listeleme islemlerini yapar. format, ogretim yili ve tarih araligini kontrol eder. net staj gununu hesaplar ve kaydeder. guncellemede eski karsilastirma sonucu, belgeye ait tum karsilastirma dogrulamalari ile belge onayi sifirlanir.)
             LoginResult.cs	(Giris isleminin sonucunu tasir: basarili giris, yanlis bilgiler veya kilitli hesap.)
             PasswordHasher.cs	(sifreleri rastgele salt kullanarak hash ler; giriste verilen sifreyi kayitli hash ile dogrular.)
-            SessionManager.cs	(Kullanici oturumlarini olusturur, token ve sure kontrolu yapar, cikista oturumu kapatir.)
-            UserSession.cs	(Bir oturumun kullanici numarasi, rolu, token i, baslangic ve bitis zamanini tasir.)
+            SessionManager.cs	(Kullanici oturumlarini olusturur, token kontrolu yapar, cikista verilen oturumu kapatir. varsayilan sure siniri yok. cagiran kod isterse acikca bir sure verebilir.)
+            UserSession.cs	(Bir oturumun kullanici numarasi, rolu, token i ve baslangic zamanini tasir. bitis zamani verilmemisse null kalir.)
             StatusWorkflowEngine.cs	(Basvuru durum gecislerini, izinleri ve degisiklik gecmisini yonetir. onaylanirken ve tamamlanirken veri seti dogrulamasi, muhendis bilgileri, son belge, belgeye kaydedilen tum karsilastirma dogrulamalari, onay alanlari, zorunlu form alanlari ve kayitli tarihler yeniden kontrol edilir.)
             UserGuard.cs	(islem yapan kullanicinin veritabaninda bulundugunu ve rolunun kayitli rolle eslestigini kontrol eder.)
             
@@ -133,10 +137,6 @@ Yapilacak isler
 
 Resmi tatil takviminin diger yillar icin genisletilmesi.
 
-Belgeden okunan diger ogrenci alanlarinin da karsilastirmaya ve ortak onay akisina baglanmasi.
-
-PDF/Word belgelerinden otomatik alan okuma ve manuel bilgilerle karsilastirma.
-
 Final asamasi icin OCR/HTR ve bos alan tespiti entegrasyonu.
 
 Google Form'a otomatik bilgi aktarimi ve Ek-17 olusturulmasi.
@@ -145,24 +145,24 @@ Diyagramlarin ve otomatik testlerin hazirlanmasi.
 
 Bilinen sorunlar
 
-Dogum tarihi, onceki staj gun sayisi ve saglik yardimi gibi diger ogrenci alanlarinin karsilastirmasi henuz tamamlanmadi.
+Dogum tarihi, onceki staj gun sayisi ve saglik yardimi alani belgede ve veri setinde bulunuyorsa karsilastiriliyor.
 
 
 ---------------------------------------------------------------------------------------------
 Tarih kontrolleri
-Ogretim yili 2026-2027 gibi ardisik iki yildan olusmali. yariyil bilgisi Guz veya Bahar olarak girilmeli.
+Ogretim yili 2026-2027 gibi ardisik iki yildan olusmali. yariyil bilgisi bos birakilamamali. PDF kapali bir deger listesi vermedigi icin yalnizca Guz ve Bahar ile sinirlanmiyor.
 Yariyil teslim edilen belgenin donem bilgisi. buyuk/kucuk harf ve bastaki sondaki bosluklar duzenleniyor.
-Belgeden okunan yariyil form ile ayni olmali. okunamayan, gecersiz veya farkli yariyil uyusmazlik olarak donuyor. staj tarihinden yariyil tahmin edilmiyor.
+Belgeden okunan yariyil form ile ayni olmali. okunamayan veya farkli yariyil uyusmazlik olarak donuyor. staj tarihinden yariyil tahmin edilmiyor.
 Stajin baslangic ve bitisi secilen ogretim yili icinde olmali. bitis baslangictan once olamaz.
 2026-2027 icin 1 Eylul 2026 - 31 Agustos 2027 araligi secildi. diger ardisik ogretim yillari da ayni yil araligi tercihiyle hazirlanabiliyor. resmi tatil verisi henuz 2026 ve 2027 ile sinirli. iki sinir gunu de dahil. bu proje icin onaylanan uygulama tercihi, PDF'nin verdigi kesin bir tarih siniri degil.
-Ogretim yili ve tarih araligi kayit, guncelleme, belge yukleme, onay ve tamamlanmada denetleniyor.
+Ogretim yili ve tarih araligi kayit, guncelleme, onay ve tamamlanmada denetleniyor.
 Belge staj baslangicindan en az 30 takvim gunu once yuklenmeli. tam 30 gun kabul ediliyor. sure yetersizse son teslim tarihi hata mesajinda veriliyor.
 30 gun hesabi dosyanin sistemdeki teslim zamaniyla yapiliyor. form kaydetme ve guncelleme islemlerine ek bir 30 gun sarti uygulanmiyor.
 Teslim zamani UTC olarak kaydediliyor. takvim gunu hesabi icin Turkiye tarihine cevriliyor. ayni gun icindeki saat ve dakika farklari sayilmiyor.
-Her yeni dosya yuklemesinde teslim tarihi yeniden kontrol ediliyor. reddedilen yukleme onceki belgeyi, durum gecmisini ve dogrulamayi degistirmiyor.
+Yeni dosya yuklemesinde gercek teslim zamani kaydediliyor. gec teslim inceleme raporuna yaziliyor ve onayi engelliyor.
 Onay ve tamamlanmada son belgenin kayitli teslim tarihi kullaniliyor. zamaninda yuklenen belge daha sonra da onaylanip tamamlanabiliyor.
 Belgenin teslim zamani eksikse veya okunamiyorsa onay engelleniyor.
-Eski kayitlar okunabiliyor. yariyil eksikse belge yukleme veya onaydan once tamamlanmali.
+Eski kayitlar okunabiliyor. yariyil eksikse onaydan once tamamlanmali.
 ---------------------------------------------------------------------------------------------
 Staj gunu hesabi
 Baslangic ve bitis gunleri dahil, ogrencinin sectigi haftalik calisma gunleri sayiliyor.
@@ -204,10 +204,10 @@ Eski veritabanlari ilk acilista yeni sutunlari aliyor. onceki karsilastirmalar y
 Bu asamada kontrol edilen belge alanlarinin okunmus degerleri metoda veriliyor. gercek belge okuyucunun bu degerleri ilgili dosyadan alip dogru belge numarasiyla gondermesi gerekiyor. otomatik okuma henuz hazir degil.
 ---------------------------------------------------------------------------------------------
 Format kontrolleri
-Ogrenci numarasinda mevcut harf ve rakam kurali korunuyor. bosluk ve ozel karakter kabul edilmiyor. sabit bir hane sayisi belirtilmedigi icin uzunluk zorunlulugu konulmadi.
+Ogrenci numarasi bos birakilamaz. PDF bir uzunluk veya karakter deseni vermedigi icin harf, rakam veya belirli bir uzunluk zorunlulugu uygulanmiyor.
 E-posta kullanici@alanadi.uzanti biciminde olmali. telefon +90 xxx xxx xx xx biciminde yazilmali.
 Hesap kaydinda e-posta zorunlu. telefon girilmisse bicimi kontrol ediliyor.
-Staj basvurusunda adres, telefon ve e-posta zorunlu. faks bos kalabilir, girilmisse telefonla ayni bicimde olmali.
+Staj basvurusunda adres, telefon ve e-posta zorunlu. faks bos kalabilir. faks icin telefonla ayni bicim zorunlulugu uygulanmiyor; girilmisse form ve belge arasinda karsilastiriliyor.
 Adres sirasi mahalle, cadde/sokak, bina no, daire no, ilce/il olarak kontrol ediliyor. bu bir adres bicimi kontrolu, resmi adres sorgusu degil.
 Adres ornegi: Merkez Mah. Cumhuriyet Cad. No:10 Daire:2 Izmit/Kocaeli
 Bilesenler virgulle ayrilsa da ayni sira korunuyorsa kabul ediliyor.
@@ -216,10 +216,10 @@ Adreste buyuk/kucuk harf, fazla bosluk ve ayirici virgul farklari eslesmeyi bozm
 Form ve belgede ayni hatali deger olsa bile bicim kontrolunu gecemiyor.
 Veri setinde adres, telefon veya e-posta varsa form ile de karşılaştırılıyor. Yeni yüklemelerde örnekteki 12 sütunun CSV başlığında veya her JSON kaydında bulunması gerekiyor. İsteğe bağlı alanlar boş bırakılabilir. Daha önce içe aktarılan kayıtlar korunur.
 Tam karsilastirma basariliysa son belgeye ContactFieldsVerified ve ContactFieldsVerifiedAt kaydediliyor. basvuru degisince veya uyusmazlik cikinca eski sonuc temizleniyor. yeni dosya eski dosyanin sonucunu kullanamiyor.
-Onay ve tamamlanmada kayitli formun adres, telefon, e-posta, faks ve isyeri adi bicim kontrolleri tekrar yapiliyor. eski dogrulama isaretleri eksik bilgiyi kabul ettirmiyor.
+Onay ve tamamlanmada kayitli formun adres, telefon, e-posta ve isyeri adi kontrolleri tekrar yapiliyor. eski dogrulama isaretleri eksik bilgiyi kabul ettirmiyor.
 Kullanici kaydinda ve yeni veri seti aktariminda ayni Regex kurallari kullaniliyor. veri setindeki istege bagli iletisim alanlari girilmisse denetleniyor.
 Eski basvurular okunabiliyor. guncelleme yapilacaksa yeni zorunlu alanlar da doldurulmali.
-Belgede uzanti, boyut ve baslangic baytlari kontrol ediliyor. docx icin [Content_Types].xml ve word/document.xml girdilerinin dolu olmasi gerekiyor. herhangi bir ZIP dosyasinin uzantisini degistirmek yeterli degil.
+Belgede uzanti, bos dosya ve baslangic baytlari kontrol ediliyor. PDF bir boyut siniri vermedigi icin sabit 10 MB siniri uygulanmiyor. docx icin [Content_Types].xml ve word/document.xml girdilerinin dolu olmasi gerekiyor. herhangi bir ZIP dosyasinin uzantisini degistirmek yeterli degil.
 ---------------------------------------------------------------------------------------------
 Muhendis ve belge onay kontrolleri
 Isyerinde en az 1 muhendis olmali. bu sart karsilastirma, onay ve tamamlanmada kontrol ediliyor.
@@ -242,6 +242,15 @@ Eski veritabanlari mevcut kayitlar silinmeden kullanilabiliyor. onceki surumlerd
 
 ---------------------------------------------------------------------------------------------
 Kartlarin mevcut durumu
-ALG-1, ALG-2, VAL-1, VAL-2 ve VAL-3 icin algoritma ve servis kontrolleri hazir.
-Ek-16 inceleme raporu hataları gösterir. Öğrenci formu mühendislik bölümü uyarısını görüntüler. Belge alanları vize akışında elle girilir.
-Diger ogrenci alanlari ve veri seti sorunlari yukaridaki yapilacak isler arasinda kalmaya devam ediyor.
+ALG-1, ALG-2, VAL-1, VAL-2 ve VAL-3 icin temel algoritma ve servis metotlari yazildi. Adres eslestirmesinde Mah. ve Mahallesi gibi esdeger yazimlar ayni kabul ediliyor.
+Ogrenci formu muhendislik bolumu uyarisi gosteriyor. Vize akisinda Ek-16 alanlari dosyadan okunuyor, karsilastirma sonucu inceleme raporunda gorunuyor.
+
+---------------------------------------------------------------------------------------------
+PDF disi kisitlarin kaldirilmasi
+Ek-16 ve veri setindeki sabit 10 MB siniri kaldirildi. bos dosya ve kabul edilen format kontrolleri duruyor.
+Sifrede en az 8 karakter, ad soyadda en az 3 karakter ve dogum yilinda 1900 siniri kaldirildi. zorunlu alanlarin dolu olmasi ve sifrenin hashlenmesi devam ediyor.
+Bes hatali giriste hesap kilidi korunuyor. PDF kilidin ne zaman acilacagini belirtmedigi icin 15 dakikada otomatik acilma uygulanmiyor.
+Varsayilan 30 dakikalik oturum suresi ve ayni kullanicinin yeni girisinde onceki oturumunu kapatma kisiti kaldirildi. token ve cikis kontrolleri devam ediyor.
+Ogrenci numarasinda ek karakter/uzunluk kurali, faksta telefon bicimi ve yariyilda yalniz Guz/Bahar kabul etme kisiti kaldirildi.
+Onaylanan 1 Eylul - 31 Agustos yil araligi, 30 takvim gunu teslim suresi, kimlik kontrolleri ve muhendis/onay kurallari korunuyor.
+Eski veritabanindaki LockoutEnd gibi kullanilmayan sutunlar veri kaybi olmasin diye tutuluyor. yeni tablolar bu sutunu olusturmuyor ve hesap kilidi bu sutuna gore acilmiyor.

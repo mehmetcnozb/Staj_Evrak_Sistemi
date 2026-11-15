@@ -7,8 +7,7 @@ using StajEvrakSistemi.Models;
 namespace StajEvrakSistemi.Services;
 
 /// <summary>
-/// Kullanıcı kaydı ve girişi. Üst üste hatalı girişlerde hesabı geçici olarak kilitler ve
-/// başarısız girişleri loglar.
+/// Kullanici kaydi ve girisi. Bes hatali denemede hesabi kilitler ve girisleri loglar.
 /// </summary>
 public class AuthService
 {
@@ -16,11 +15,9 @@ public class AuthService
     /// Şartname 4.1: 5 hatalı denemede sistem kilitlenir.
     /// </summary>
     public const int MaxFailedAttempts = 5;
-    public static readonly TimeSpan LockoutDuration = TimeSpan.FromMinutes(15);
-    public const int MinPasswordLength = 8;
 
     private const string SelectUserColumns =
-        "Id, IdentityNumber, StudentNumber, FullName, Email, Phone, PasswordHash, Role, CreatedAt, FailedLoginAttempts, LockoutEnd, IsForeign";
+        "Id, IdentityNumber, StudentNumber, FullName, Email, Phone, PasswordHash, Role, CreatedAt, FailedLoginAttempts, IsForeign";
 
     private readonly DatabaseManager _database;
     private readonly Func<DateTime> _utcNow;
@@ -41,8 +38,8 @@ public class AuthService
     {
         ArgumentNullException.ThrowIfNull(user);
 
-        if (string.IsNullOrEmpty(password) || password.Length < MinPasswordLength)
-            throw new ArgumentException($"Şifre en az {MinPasswordLength} karakter olmalıdır.", nameof(password));
+        if (string.IsNullOrEmpty(password))
+            throw new ArgumentException("Sifre bos olamaz.", nameof(password));
 
         using var connection = _database.GetConnection();
         EnsureCanRegister(connection, user, createdBy);
@@ -88,7 +85,7 @@ public class AuthService
     }
 
     /// <summary>
-    /// E-posta, kimlik veya öğrenci numarası ile giriş yapar. 5 hatalı denemede hesap 15 dakika kilitlenir.
+    /// E-posta, kimlik veya ogrenci numarasi ile giris yapar. Bes hatali denemede hesap kilitlenir.
     /// Başarısız her deneme FailedLoginLogs tablosuna yazılır.
     /// </summary>
     public LoginResult Login(string emailOrIdentity, string password)
@@ -109,34 +106,27 @@ public class AuthService
 
         var (user, passwordHash) = found.Value;
 
-        if (user.IsLockedOut(now))
+        if (user.IsLockedOut(MaxFailedAttempts))
         {
             LogFailedLogin(connection, null, user.Id, identifier, FailedLoginReason.LockedOut, now);
-            return new LoginResult(LoginStatus.LockedOut, RemainingLockout: user.LockoutEnd!.Value - now);
-        }
-
-        // Kilit süresi dolduysa sayaç sıfırlanır, kullanıcı yeniden hak kazanır.
-        if (user.LockoutEnd.HasValue)
-        {
-            user.ResetLoginAttempts();
-            SaveLoginState(connection, null, user);
+            return new LoginResult(LoginStatus.LockedOut);
         }
 
         if (!PasswordHasher.VerifyPassword(password, passwordHash))
         {
             using var transaction = connection.BeginTransaction();
-            user.RecordFailedLogin(now, MaxFailedAttempts, LockoutDuration);
+            user.RecordFailedLogin();
             SaveLoginState(connection, transaction, user);
             LogFailedLogin(connection, transaction, user.Id, identifier, FailedLoginReason.WrongPassword, now);
             transaction.Commit();
 
-            return user.IsLockedOut(now)
-                ? new LoginResult(LoginStatus.LockedOut, RemainingLockout: user.LockoutEnd!.Value - now)
+            return user.IsLockedOut(MaxFailedAttempts)
+                ? new LoginResult(LoginStatus.LockedOut)
                 : new LoginResult(LoginStatus.InvalidCredentials,
                     RemainingAttempts: MaxFailedAttempts - user.FailedLoginAttempts);
         }
 
-        if (user.FailedLoginAttempts != 0 || user.LockoutEnd.HasValue)
+        if (user.FailedLoginAttempts != 0)
         {
             user.ResetLoginAttempts();
             SaveLoginState(connection, null, user);
@@ -260,8 +250,7 @@ public class AuthService
         user.SetPasswordHash(passwordHash);
         user.CreatedAt = FromDbDate(reader.GetString(8));
         user.FailedLoginAttempts = reader.GetInt32(9);
-        user.LockoutEnd = reader.IsDBNull(10) ? null : FromDbDate(reader.GetString(10));
-        user.IsForeign = reader.GetInt32(11) == 1;
+        user.IsForeign = reader.GetInt32(10) == 1;
 
         return (user, passwordHash);
     }
@@ -270,9 +259,8 @@ public class AuthService
     {
         using var command = connection.CreateCommand();
         command.Transaction = transaction;
-        command.CommandText = "UPDATE Users SET FailedLoginAttempts = $attempts, LockoutEnd = $lockoutEnd WHERE Id = $id;";
+        command.CommandText = "UPDATE Users SET FailedLoginAttempts = $attempts WHERE Id = $id;";
         command.Parameters.AddWithValue("$attempts", user.FailedLoginAttempts);
-        command.Parameters.AddWithValue("$lockoutEnd", user.LockoutEnd.HasValue ? ToDbDate(user.LockoutEnd.Value) : DBNull.Value);
         command.Parameters.AddWithValue("$id", user.Id);
         command.ExecuteNonQuery();
     }

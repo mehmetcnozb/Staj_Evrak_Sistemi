@@ -20,7 +20,7 @@ public class InternshipApplication
     public string AcademicYear { get; set; } = string.Empty;
 
     /// <summary>
-    /// Belgenin teslim edildigi yariyil bilgisi. Guz veya Bahar olarak kaydedilir.
+    /// Belgenin teslim edildigi yariyil bilgisi.
     /// </summary>
     public string? Semester { get; set; }
 

@@ -22,7 +22,10 @@ public enum Ek16Field
     Fax,
     Semester,
     CompanyName,
-    EngineerCount
+    EngineerCount,
+    BirthDate,
+    PreviousInternshipDays,
+    HealthAidStatus
 }
 
 /// <summary>

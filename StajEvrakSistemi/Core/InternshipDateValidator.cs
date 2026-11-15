@@ -38,7 +38,7 @@ public static class InternshipDateValidator
             errors.Add($"Bu ogretim yili icin akademik takvim tanimli degil. Desteklenen yil: {calendar.AcademicYear}.");
 
         if (NormalizeSemester(application.Semester) is null)
-            errors.Add("Teslim edilen yariyil Guz veya Bahar olarak girilmeli.");
+            errors.Add("Teslim edilen yariyil bilgisi girilmeli.");
 
         if (application.StartDate == default || application.EndDate == default)
         {
@@ -61,13 +61,13 @@ public static class InternshipDateValidator
 
     public static string? NormalizeSemester(string? semester)
     {
-        string? value = semester?.Trim();
+        string? value = string.IsNullOrWhiteSpace(semester) ? null : semester.Trim();
         if (string.Equals(value, "Guz", StringComparison.OrdinalIgnoreCase)
             || string.Equals(value, "G\u00fcz", StringComparison.OrdinalIgnoreCase))
             return "Guz";
         if (string.Equals(value, "Bahar", StringComparison.OrdinalIgnoreCase))
             return "Bahar";
-        return null;
+        return value;
     }
 
     // Stajin iki ucu da secilen ogretim yili icinde olmali. Sinir gunleri dahildir.

@@ -21,7 +21,10 @@ public sealed record ScannedDocumentFields(
     string? Fax = null,
     string? Semester = null,
     string? CompanyName = null,
-    int? EngineerCount = null);
+    int? EngineerCount = null,
+    DateTime? BirthDate = null,
+    int? PreviousInternshipDays = null,
+    string? HealthAidStatus = null);
 
 /// <summary>
 /// Basvurudaki bilgiler ile belgeden okunan alanlarin karsilastirma sonucu.
