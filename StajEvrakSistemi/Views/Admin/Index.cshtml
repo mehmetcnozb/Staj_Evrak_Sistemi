@@ -9,7 +9,13 @@
     <link rel="stylesheet" href="~/css/admin-panel.css" asp-append-version="true" />
 }
 
-<h1>Yönetici Paneli</h1>
+<header class="panel-hero panel-hero-compact">
+    <h1>Yönetici Paneli</h1>
+    @if (!Model.Completed)
+    {
+        <a class="button" href="#veri-seti">Veri setine git <span class="chevron-down" aria-hidden="true"></span></a>
+    }
+</header>
 
 <nav class="tabs" aria-label="Yönetici paneli sekmeleri">
     <a asp-action="Index" aria-current="@(!Model.Completed ? "page" : null)">Tüm başvurular</a>
@@ -48,7 +54,13 @@
 }
 
 <section class="card" aria-labelledby="applications-heading">
-    <h2 id="applications-heading">@heading</h2>
+    <div class="section-heading">
+        <h2 id="applications-heading">@heading</h2>
+        @if (hasFilters && Model.Applications.Count > 0)
+        {
+            <p class="results-count" role="status">@Model.Applications.Count başvuru bulundu.</p>
+        }
+    </div>
     <form asp-action="Index" asp-fragment="applications-heading" method="get" class="admin-filters" role="search" aria-label="Başvuru ara">
         @if (Model.Completed)
         {
@@ -105,11 +117,7 @@
     }
     else
     {
-        @if (hasFilters)
-        {
-            <p role="status">@Model.Applications.Count başvuru bulundu.</p>
-        }
-        <div class="table-scroll admin-table" tabindex="0" role="region" aria-labelledby="applications-heading">
+        <div class="table-scroll admin-table" tabindex="0" role="region" aria-label="@heading tablosu">
             <table>
                 <thead>
                     <tr>
@@ -139,7 +147,7 @@
                             <td>@application.CompanyName</td>
                             <td class="admin-nowrap">@application.AcademicYear @application.Semester</td>
                             <td class="admin-nowrap">@application.StartDate.ToString("dd.MM.yyyy") – @application.EndDate.ToString("dd.MM.yyyy")</td>
-                            <td>@application.NetWorkDays.ToString("0.##")</td>
+                            <td>@application.NetWorkDays.ToString("0.##", System.Globalization.CultureInfo.GetCultureInfo("tr-TR"))</td>
                             <td>@await Html.PartialAsync("_StatusBadge", application.Status)</td>
                             <td>
                                 <a asp-controller="Report" asp-action="Details" asp-route-id="@application.Id"

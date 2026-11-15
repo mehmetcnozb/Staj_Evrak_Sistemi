@@ -17,11 +17,16 @@
     <link rel="stylesheet" href="~/css/student-details.css" asp-append-version="true" />
 }
 
-<p><a asp-action="Index">Öğrenci paneline dön</a></p>
+<p><a asp-action="Index" class="back-link">Öğrenci paneline dön</a></p>
 <div class="student-detail-heading">
     <h1>Başvuru #@application.Id</h1>
     @await Html.PartialAsync("_StatusBadge", application.Status)
 </div>
+<nav class="tabs section-links" aria-label="Başvuru bölümleri">
+    <a href="#basvuru-bilgileri">Başvuru bilgileri</a>
+    <a href="#ek16-yukle">Ek-16 belgesi</a>
+    <a href="#durum-gecmisi">Durum geçmişi</a>
+</nav>
 @if (TempData["StudentSuccess"] is string success)
 {
     <p class="notice success" role="status">@success</p>
@@ -44,12 +49,12 @@
         }
         @if (Model.CanUpload)
         {
-            <a href="#ek16-yukle" class="button">Düzelt ve yeniden yükle</a>
+            <a href="#ek16-yukle" class="button attention">Düzelt ve yeniden yükle</a>
         }
     </section>
 }
 
-<section class="card" aria-labelledby="application-heading">
+<section class="card" id="basvuru-bilgileri" tabindex="-1" aria-labelledby="application-heading">
     <h2 id="application-heading">@application.CompanyName</h2>
     <dl class="form-grid">
         <div><dt>Öğretim yılı / teslim yarıyılı</dt><dd>@application.AcademicYear @(application.Semester == "Guz" ? "Güz" : application.Semester)</dd></div>
@@ -126,7 +131,7 @@
     }
 </section>
 
-<section class="card student-workflow" aria-labelledby="workflow-heading">
+<section class="card student-workflow" id="durum-gecmisi" tabindex="-1" aria-labelledby="workflow-heading">
     <h2 id="workflow-heading">Başvuru durumu ve geçmiş</h2>
     <ol class="student-status-steps" aria-label="Başvuru durumları">
         @foreach (var status in Enum.GetValues<ApplicationStatus>())

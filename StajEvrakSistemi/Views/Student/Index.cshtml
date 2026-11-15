@@ -4,6 +4,13 @@
 @{
     ViewData["Title"] = "Öğrenci paneli";
     var turkey = CultureInfo.GetCultureInfo("tr-TR");
+    var stats = new[]
+    {
+        (Filter: "all", Label: "Toplam", Count: Model.Summary.Total, Action: "Tüm başvuruları göster"),
+        (Filter: nameof(ApplicationStatus.UnderReview), Label: "İnceleniyor", Count: Model.Summary.UnderReview, Action: "İncelenen başvuruları göster"),
+        (Filter: nameof(ApplicationStatus.FaultyOrMissing), Label: "Hatalı / Eksik", Count: Model.Summary.NeedsCorrection, Action: "Hatalı veya eksik başvuruları göster"),
+        (Filter: nameof(ApplicationStatus.Completed), Label: "Tamamlandı", Count: Model.Summary.Completed, Action: "Tamamlanan başvuruları göster")
+    };
 }
 
 <header class="panel-hero">
@@ -20,15 +27,27 @@
     </div>
     @if (Model.HasApplications)
     {
-        <a asp-action="Create" class="button">Yeni staj başvurusu</a>
+        <a asp-action="Create" class="button button-create">Yeni staj başvurusu</a>
     }
 </header>
 
 <dl class="panel-stats" aria-label="Başvuru özeti">
-    <div class="panel-stat"><dt>Toplam</dt><dd>@Model.Summary.Total</dd></div>
-    <div class="panel-stat"><dt>İnceleniyor</dt><dd>@Model.Summary.UnderReview</dd></div>
-    <div class="panel-stat"><dt>Hatalı / Eksik</dt><dd>@Model.Summary.NeedsCorrection</dd></div>
-    <div class="panel-stat"><dt>Tamamlandı</dt><dd>@Model.Summary.Completed</dd></div>
+    @foreach (var stat in stats)
+    {
+        <div class="panel-stat" data-stat="@stat.Filter">
+            <dt>@stat.Label</dt>
+            <dd>
+                @stat.Count
+                @if (Model.HasApplications)
+                {
+                    <button type="button" class="panel-stat-action" data-status-filter="@stat.Filter" data-filter-label="@stat.Label"
+                            aria-label="@stat.Action" aria-controls="student-application-list" aria-pressed="@(stat.Filter == "all" ? "true" : "false")" hidden>
+                        <span class="stat-arrow" aria-hidden="true"></span>
+                    </button>
+                }
+            </dd>
+        </div>
+    }
 </dl>
 
 @foreach (var row in Model.NeedsCorrection)
@@ -47,7 +66,7 @@
         </div>
         @if (row.CanUploadDocument)
         {
-            <a class="button secondary" asp-action="Details" asp-route-id="@row.Application.Id" asp-fragment="ek16-yukle">Düzelt ve yeniden yükle</a>
+            <a class="button attention" asp-action="Details" asp-route-id="@row.Application.Id" asp-fragment="ek16-yukle">Düzelt ve yeniden yükle</a>
         }
         else
         {
@@ -56,8 +75,14 @@
     </section>
 }
 
-<section class="card panel-applications" aria-labelledby="applications-heading">
-    <h2 id="applications-heading">Başvurularım</h2>
+<section class="card panel-applications" id="student-application-list" aria-labelledby="applications-heading">
+    <div class="section-heading">
+        <h2 id="applications-heading">Başvurularım</h2>
+        @if (Model.HasApplications)
+        {
+            <p class="results-count" data-filter-result role="status">@Model.Summary.Total başvuru</p>
+        }
+    </div>
     @if (!Model.HasApplications)
     {
         <div class="panel-guide">
@@ -70,12 +95,12 @@
                     <li>Kontrol sonucunu incele</li>
                 </ol>
             </div>
-            <a asp-action="Create" class="button">Yeni staj başvurusu</a>
+            <a asp-action="Create" class="button button-create">Yeni staj başvurusu</a>
         </div>
     }
     else
     {
-        <div class="table-scroll" tabindex="0" role="region" aria-labelledby="applications-heading">
+        <div class="table-scroll" data-filter-table tabindex="0" role="region" aria-label="Başvuru tablosu">
             <table class="panel-table">
                 <thead>
                     <tr>
@@ -91,7 +116,7 @@
                     @foreach (var row in Model.Applications)
                     {
                         var application = row.Application;
-                        <tr>
+                        <tr data-application-status="@application.Status">
                             <th scope="row">@application.CompanyName <small>Başvuru #@application.Id</small></th>
                             <td class="panel-date-range">
                                 <time datetime="@application.StartDate.ToString("yyyy-MM-dd")">@application.StartDate.ToString("dd.MM.yyyy")</time>
@@ -135,6 +160,10 @@
                 </tbody>
             </table>
         </div>
+        <div class="empty-filter" data-filter-empty hidden>
+            <p>Bu durumda başvuru bulunamadı.</p>
+            <button type="button" class="button secondary" data-reset-filter>Tüm başvuruları göster</button>
+        </div>
     }
 </section>
 
@@ -148,3 +177,10 @@
         <div><dt>Dosya sınırı</dt><dd>@Model.MaxFileSizeMb MB</dd></div>
     </dl>
 </aside>
+
+@section Scripts {
+    @if (Model.HasApplications)
+    {
+        <script src="~/js/student-filters.js" asp-append-version="true"></script>
+    }
+}

@@ -9,11 +9,11 @@
 <p>
     @if (admin)
     {
-        <a asp-controller="Admin" asp-action="Index" asp-route-completed="@(application.Status == ApplicationStatus.Completed)">Yönetici paneline dön</a>
+        <a asp-controller="Admin" asp-action="Index" asp-route-completed="@(application.Status == ApplicationStatus.Completed)" class="back-link">Yönetici paneline dön</a>
     }
     else
     {
-        <a asp-controller="Student" asp-action="Details" asp-route-id="@application.Id">Başvuruya dön</a>
+        <a asp-controller="Student" asp-action="Details" asp-route-id="@application.Id" class="back-link">Başvuruya dön</a>
     }
 </p>
 <h1>Başvuru #@application.Id · Ek-16 hata raporu</h1>
@@ -93,7 +93,7 @@
             <form asp-action="UpdateStatus" asp-route-id="@application.Id" method="post">
                 <label for="note">Hatalı / eksik gerekçesi</label>
                 <textarea name="note" id="note" rows="3" maxlength="500" required></textarea>
-                <div class="actions"><button type="submit" name="target" value="FaultyOrMissing">Düzeltme iste</button></div>
+                <div class="actions"><button type="submit" class="button attention" name="target" value="FaultyOrMissing">Düzeltme iste</button></div>
             </form>
         }
         @if (application.Status == ApplicationStatus.UnderReview && document.ApprovalReviewedAt is not null

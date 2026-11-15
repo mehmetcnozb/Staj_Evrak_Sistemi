@@ -3,6 +3,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#181920" />
     <title>@ViewData["Title"] | Staj Evrak Sistemi</title>
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     @await RenderSectionAsync("Styles", required: false)
@@ -11,11 +12,14 @@
     <a class="skip-link" href="#ana-icerik">Ana içeriğe geç</a>
     <header class="site-header">
         <div class="shell header-content">
-            <a class="brand" asp-controller="Account" asp-action="Index">Staj Evrak Sistemi</a>
+            <a class="brand" asp-controller="Account" asp-action="Index">
+                <span class="brand-mark" aria-hidden="true"></span>
+                Staj Evrak Sistemi
+            </a>
             @if (User.Identity?.IsAuthenticated == true)
             {
-                <nav class="actions" aria-label="Oturum">
-                    <a asp-controller="Account" asp-action="Index">Panelim</a>
+                <nav class="actions header-actions" aria-label="Oturum">
+                    <a class="header-link" asp-controller="Account" asp-action="Index">Panelim</a>
                     <form asp-controller="Account" asp-action="Logout" method="post">
                         <button type="submit" class="secondary">Çıkış yap</button>
                     </form>
