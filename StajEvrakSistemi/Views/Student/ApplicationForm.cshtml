@@ -64,13 +64,15 @@
         </div>
         <div>
             <label asp-for="Phone"></label>
-            <input asp-for="Phone" type="tel" autocomplete="tel" placeholder="+90 555 123 45 67" required />
-            <span asp-validation-for="Phone"></span>
+            <input asp-for="Phone" type="tel" autocomplete="tel" placeholder="+90 555 123 45 67"
+                   aria-describedby="phone-help phone-error" required />
+            <small id="phone-help">Başında +90 veya 0 bulunan numarayı yapıştırabilirsiniz. Numara +90 555 123 45 67 biçiminde kaydedilir.</small>
+            <span id="phone-error" asp-validation-for="Phone"></span>
         </div>
         <div>
             <label asp-for="Fax"></label>
-            <input asp-for="Fax" type="tel" placeholder="+90 262 123 45 67" />
-            <span asp-validation-for="Fax"></span>
+            <input asp-for="Fax" type="tel" placeholder="+90 262 123 45 67" aria-describedby="fax-error" />
+            <span id="fax-error" asp-validation-for="Fax"></span>
         </div>
     </div>
 

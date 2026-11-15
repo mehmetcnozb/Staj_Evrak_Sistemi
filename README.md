@@ -40,7 +40,7 @@ dotnet run --project StajEvrakSistemi -- --urls http://localhost:5080
 ```
 
 Yönetici, panelden kurgu öğrenci kayıtlarını içeren örnek CSV'yi indirip içe aktarabilir.
-Öğrenci hesabı giriş ekranından açılır. Veri seti eşleştirmesini denemek için CSV'deki
+Öğrenci hesabı giriş ekranından açılır. Öğrenciler e-posta, öğrenci numarası veya kimlik numarasıyla giriş yapabilir. Veri seti eşleştirmesini denemek için CSV'deki
 bir öğrencinin kimlik, öğrenci numarası ve iletişim bilgileriyle bir test hesabı açın.
 
 Öğrenci staj tarihlerini ve haftalık günlerini seçer, başvurusunu kaydeder ve Ek-16 yükler.
@@ -147,7 +147,6 @@ Bilinen sorunlar
 
 Dogum tarihi, onceki staj gun sayisi ve saglik yardimi gibi diger ogrenci alanlarinin karsilastirmasi henuz tamamlanmadi.
 
-Veri setindeki butun sutunlarin varlik kontrolu ve atlanan satirlardan sonraki mukerrer kontrolu tamamlanmalidir.
 
 ---------------------------------------------------------------------------------------------
 Tarih kontrolleri
@@ -215,7 +214,7 @@ Bilesenler virgulle ayrilsa da ayni sira korunuyorsa kabul ediliyor.
 Formdaki adres, telefon, e-posta ve faks belgeden okunan bilgilerle karsilastiriliyor. adres, telefon ve e-posta belgeden okunamazsa dogrulama verilmiyor. faks iki tarafta da bos kalabilir.
 Adreste buyuk/kucuk harf, fazla bosluk ve ayirici virgul farklari eslesmeyi bozmuyor. e-postada buyuk/kucuk harf farki aranmiyor. farkli numara veya adres bilgisi uyusmazlik olarak donuyor.
 Form ve belgede ayni hatali deger olsa bile bicim kontrolunu gecemiyor.
-Veri setinde adres, telefon veya e-posta varsa form ile de karsilastiriliyor. eski veri setinde olmayan degerler uretilmiyor. tum veri seti sutunlarinin zorunlu varlik kontrolu halen yapilacak isler arasinda.
+Veri setinde adres, telefon veya e-posta varsa form ile de karşılaştırılıyor. Yeni yüklemelerde örnekteki 12 sütunun CSV başlığında veya her JSON kaydında bulunması gerekiyor. İsteğe bağlı alanlar boş bırakılabilir. Daha önce içe aktarılan kayıtlar korunur.
 Tam karsilastirma basariliysa son belgeye ContactFieldsVerified ve ContactFieldsVerifiedAt kaydediliyor. basvuru degisince veya uyusmazlik cikinca eski sonuc temizleniyor. yeni dosya eski dosyanin sonucunu kullanamiyor.
 Onay ve tamamlanmada kayitli formun adres, telefon, e-posta, faks ve isyeri adi bicim kontrolleri tekrar yapiliyor. eski dogrulama isaretleri eksik bilgiyi kabul ettirmiyor.
 Kullanici kaydinda ve yeni veri seti aktariminda ayni Regex kurallari kullaniliyor. veri setindeki istege bagli iletisim alanlari girilmisse denetleniyor.

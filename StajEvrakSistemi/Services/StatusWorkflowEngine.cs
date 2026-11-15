@@ -113,6 +113,10 @@ public class StatusWorkflowEngine
     public void ValidateUpdateOperation(int applicationId, User currentUser) =>
         ValidateModification(applicationId, currentUser, ModificationKind.Update);
 
+    internal ApplicationStatus ValidateUpdateOperation(SqliteConnection connection, SqliteTransaction transaction,
+        int applicationId, User currentUser) =>
+        ValidateModification(connection, transaction, applicationId, currentUser, ModificationKind.Update);
+
     /// <summary>
     /// Başvuru veya evrakı silinmeden önce çağrılır; izin yoksa istisna fırlatır.
     /// </summary>
@@ -156,7 +160,7 @@ public class StatusWorkflowEngine
         transaction.Commit();
     }
 
-    private StatusTransitionLog ChangeStatus(SqliteConnection connection, SqliteTransaction transaction,
+    internal StatusTransitionLog ChangeStatus(SqliteConnection connection, SqliteTransaction transaction,
         int applicationId, ApplicationStatus newStatus, User currentUser, string note)
     {
         EnsureUserInDatabase(connection, transaction, currentUser);
@@ -265,14 +269,17 @@ public class StatusWorkflowEngine
 
     private void ValidateModification(int applicationId, User currentUser, ModificationKind kind)
     {
-        string action = kind == ModificationKind.Update ? "güncellenemez" : "silinemez";
-
         if (currentUser is null)
             throw new LoginRequiredException("Başvuru üzerinde değişiklik yapmak için giriş yapmalısınız.");
 
         using var connection = _database.GetConnection();
         using var transaction = connection.BeginTransaction();
+        ValidateModification(connection, transaction, applicationId, currentUser, kind);
+    }
 
+    private ApplicationStatus ValidateModification(SqliteConnection connection, SqliteTransaction transaction,
+        int applicationId, User currentUser, ModificationKind kind)
+    {
         EnsureUserInDatabase(connection, transaction, currentUser);
 
         var application = LoadApplication(connection, transaction, applicationId)
@@ -283,9 +290,10 @@ public class StatusWorkflowEngine
                 "403 Yetkisiz Erişim: Yalnızca kendi staj başvurunuz ve evraklarınız üzerinde değişiklik yapabilirsiniz.");
 
         if (CanModifyOrDelete(application.Status, currentUser))
-            return;
+            return application.Status;
 
         string statusName = GetDisplayName(application.Status);
+        string action = kind == ModificationKind.Update ? "güncellenemez" : "silinemez";
         throw new InvalidOperationException(application.Status switch
         {
             ApplicationStatus.Completed =>

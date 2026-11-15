@@ -10,6 +10,10 @@ public static class FormatValidator
     // Ogrenci numarasinda mevcut harf ve rakam kurali korunur.
     private static readonly Regex StudentNumberPattern = new(@"\A[A-Za-z0-9]+\z", Options);
     private static readonly Regex PhonePattern = new(@"\A\+90 [0-9]{3} [0-9]{3} [0-9]{2} [0-9]{2}\z", Options);
+    private const string PhoneSeparator = @"[\p{Zs}\t]*(?:-[\p{Zs}\t]*)?";
+    private static readonly Regex PhoneInputPattern = new(
+        $@"\A(?:(?:\+90|0090|0){PhoneSeparator})?"
+        + $@"(?<number>(?:\([1-9][0-9]{{2}}\)|[1-9][0-9]{{2}})(?:{PhoneSeparator}[0-9]){{7}})\z", Options);
     private static readonly Regex EmailPattern = new(
         @"\A[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+)*@(?:[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?\.)+[A-Za-z]{2,}\z", Options);
     private static readonly Regex AddressPattern = new(
@@ -34,6 +38,24 @@ public static class FormatValidator
 
     public static bool IsValidOptionalFax(string? value) =>
         string.IsNullOrWhiteSpace(value) || IsValidTurkishPhone(value);
+
+    // Öğrenci formuna yapıştırılan eşdeğer numaraları kayıt biçimine dönüştürür.
+    public static string? NormalizeTurkishPhone(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return null;
+
+        string input = value.Trim();
+        if (PhonePattern.IsMatch(input))
+            return input;
+
+        var match = PhoneInputPattern.Match(input);
+        if (!match.Success)
+            return null;
+
+        string digits = new(match.Groups["number"].Value.Where(char.IsAsciiDigit).ToArray());
+        return $"+90 {digits[..3]} {digits[3..6]} {digits[6..8]} {digits[8..]}";
+    }
 
     public static bool IsValidAddress(string? value)
     {
