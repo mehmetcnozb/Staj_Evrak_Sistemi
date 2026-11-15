@@ -7,6 +7,9 @@
     <label for="file">Yüklenecek Ek-16 dosyası</label>
     <input id="file" name="file" type="file" accept=".doc,.docx,.pdf,.jpg,.jpeg,.png"
            aria-describedby="upload-help upload-error upload-selection" aria-invalid="@(invalidFile ? "true" : null)" required />
-    <p id="upload-selection" role="status" data-file-selection hidden></p>
+    <div class="file-feedback">
+        <p id="upload-selection" role="status" data-file-selection></p>
+        <button type="button" class="button quiet file-clear" data-file-clear hidden>Seçimi kaldır</button>
+    </div>
     <div class="actions"><button type="submit">Evrak Yükle</button></div>
 </form>
