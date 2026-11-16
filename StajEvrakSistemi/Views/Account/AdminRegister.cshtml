@@ -1,0 +1,46 @@
+@model AdminRegistrationInput
+@{
+    ViewData["Title"] = "Yönetici hesabı";
+}
+<section class="card account-card">
+    <p><span class="status-badge">Yönetici</span></p>
+    <h1>Yönetici hesabı oluştur</h1>
+    <p class="notice">@FacultyEmailPolicy.Requirement</p>
+    <form asp-action="AdminRegister" method="post" class="form-grid">
+        <div asp-validation-summary="ModelOnly" role="alert" class="full-width"></div>
+        <label class="full-width">
+            @Html.DisplayNameFor(m => m.FullName)
+            <input asp-for="FullName" autocomplete="name" required />
+            <span asp-validation-for="FullName"></span>
+        </label>
+        <div class="full-width">
+            <label asp-for="IdentityNumber"></label>
+            <input asp-for="IdentityNumber" inputmode="numeric" aria-describedby="admin-identity-help admin-identity-error" required />
+            <small id="admin-identity-help">11 rakam.</small>
+            <span asp-validation-for="IdentityNumber" id="admin-identity-error"></span>
+        </div>
+        <div class="full-width">
+            <label asp-for="Email"></label>
+            <input asp-for="Email" type="email" autocomplete="email" aria-describedby="admin-register-email-help" required />
+            <small id="admin-register-email-help">Örnek: ad.soyad@@@FacultyEmailPolicy.Domain</small>
+            <span asp-validation-for="Email"></span>
+        </div>
+        <div class="full-width">
+            <label asp-for="Password"></label>
+            <div class="password-field">
+                <input asp-for="Password" autocomplete="new-password" required />
+                <button type="button" class="button quiet password-toggle" data-password-toggle
+                        aria-controls="Password" aria-label="Şifreyi göster" hidden>Göster</button>
+            </div>
+            <span asp-validation-for="Password"></span>
+        </div>
+        <div class="actions full-width">
+            <button type="submit">Yönetici hesabı oluştur</button>
+            <a asp-action="AdminLogin">Yönetici girişi</a>
+        </div>
+    </form>
+</section>
+
+@section Scripts {
+    <script src="~/js/password-toggle.js" asp-append-version="true"></script>
+}

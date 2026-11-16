@@ -27,16 +27,27 @@ Microsoft.Data.Sqlite  - C# uygulamasinin SQLite veritabani ile  iletisim kurmas
 ---------------------------------------------------------------------------------------------
 Kurulum ve calistirma
 
-.NET 8 SDK ile depo kökünden ilk yönetici hesabını oluşturun.
+.NET 8 SDK ile depo kökünden uygulamayı başlatın ve terminaldeki yerel adresi açın.
+
+```sh
+dotnet run --project StajEvrakSistemi -- --urls http://localhost:5080
+```
+
+Yöneticiler `/Account/AdminLogin` ekranından giriş yapar, hesaplarını `/Account/AdminRegister` ekranından açar.
+Yönetici hesabı yalnızca `@kocaeli.edu.tr` uzantılı öğretim görevlisi e-postasıyla açılır. Yalnızca rakamdan oluşan
+(öğrenci numaralı) adresler kabul edilmez. Alan adı `AdminEmailDomain` ayarıyla değiştirilebilir.
+Yönetici yalnızca e-posta ve şifreyle, yalnızca yönetici ekranından giriş yapar. Öğrenci giriş ekranı yönetici hesabını kabul etmez.
+
+Yönetici hesabı komut satırından da açılabilir. Aynı e-posta kuralı geçerlidir.
 
 ```sh
 dotnet run --project StajEvrakSistemi -- --create-admin
 ```
 
-Ardından uygulamayı başlatın ve terminaldeki yerel adresi açın.
+Bütün yönetici hesaplarını silmek için aşağıdaki komut kullanılır. Öğrenci hesapları, başvurular ve belgeler silinmez.
 
 ```sh
-dotnet run --project StajEvrakSistemi -- --urls http://localhost:5080
+dotnet run --project StajEvrakSistemi -- --reset-admins
 ```
 
 Yönetici, panelden kurgu öğrenci kayıtlarını içeren örnek CSV'yi indirip içe aktarabilir.

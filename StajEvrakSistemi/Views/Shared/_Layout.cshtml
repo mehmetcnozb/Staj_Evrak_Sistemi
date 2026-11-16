@@ -45,6 +45,7 @@
                 @if (User.Identity?.IsAuthenticated == true)
                 {
                     <nav class="actions header-session" aria-label="Oturum">
+                        <span class="status-badge">@(User.IsInRole(RolePermissions.RoleAdmin) ? "Yönetici" : "Öğrenci")</span>
                         <a class="header-link" asp-controller="Account" asp-action="Index">Panelim</a>
                         <form asp-controller="Account" asp-action="Logout" method="post">
                             <button type="submit" class="secondary">Çıkış yap</button>

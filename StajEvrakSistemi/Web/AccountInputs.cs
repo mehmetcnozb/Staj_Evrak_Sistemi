@@ -16,6 +16,50 @@ public sealed class LoginInput
     public string? ReturnUrl { get; set; }
 }
 
+public sealed class AdminLoginInput
+{
+    [Display(Name = "Öğretim görevlisi e-postası")]
+    [Required(ErrorMessage = "Öğretim görevlisi e-postanızı girin.")]
+    [EmailAddress(ErrorMessage = "Geçerli bir e-posta adresi girin.")]
+    public string Email { get; set; } = "";
+
+    [Display(Name = "Şifre")]
+    [DataType(DataType.Password)]
+    [Required(ErrorMessage = "Şifrenizi girin.")]
+    public string Password { get; set; } = "";
+
+    public string? ReturnUrl { get; set; }
+}
+
+public sealed class AdminRegistrationInput
+{
+    private string _identityNumber = "";
+
+    [Display(Name = "Ad soyad")]
+    [Required(ErrorMessage = "Adınızı ve soyadınızı girin.")]
+    [StringLength(120)]
+    public string FullName { get; set; } = "";
+
+    [Display(Name = "T.C. kimlik numarası")]
+    [Required(ErrorMessage = "Kimlik numaranızı girin.")]
+    public string IdentityNumber
+    {
+        get => _identityNumber;
+        set => _identityNumber = value?.Trim() ?? "";
+    }
+
+    [Display(Name = "Öğretim görevlisi e-postası")]
+    [Required(ErrorMessage = "Öğretim görevlisi e-postanızı girin.")]
+    [EmailAddress(ErrorMessage = "Geçerli bir e-posta adresi girin.")]
+    [StringLength(254)]
+    public string Email { get; set; } = "";
+
+    [Display(Name = "Şifre")]
+    [DataType(DataType.Password)]
+    [Required(ErrorMessage = "Bir şifre girin.")]
+    public string Password { get; set; } = "";
+}
+
 public sealed class StudentRegistrationInput
 {
     private string _identityNumber = "";

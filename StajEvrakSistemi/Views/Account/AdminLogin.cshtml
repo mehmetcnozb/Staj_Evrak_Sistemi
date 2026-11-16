@@ -1,0 +1,48 @@
+@model AdminLoginInput
+@{
+    ViewData["Title"] = "Yönetici girişi";
+}
+<div class="login-layout">
+    <div class="login-intro">
+        <div>
+            <p class="login-intro-title">Yönetici paneli</p>
+            <p class="login-intro-caption">Başvuruları incele, Ek-16 belgelerini onayla. Bu ekran yalnızca öğretim görevlileri içindir.</p>
+        </div>
+    </div>
+    <section class="card account-card login-card" aria-labelledby="admin-login-heading">
+        <p><span class="status-badge">Yönetici</span></p>
+        <h1 id="admin-login-heading">Yönetici girişi</h1>
+        @if (TempData["AccountMessage"] is string message)
+        {
+            <p class="notice success" role="status">@message</p>
+        }
+        <form asp-action="AdminLogin" method="post" class="form-grid">
+            <div asp-validation-summary="ModelOnly" role="alert" class="full-width"></div>
+            <input asp-for="ReturnUrl" type="hidden" />
+            <div class="full-width">
+                <label asp-for="Email"></label>
+                <input asp-for="Email" type="email" autocomplete="username" aria-describedby="admin-email-help" required />
+                <small id="admin-email-help">@("@" + FacultyEmailPolicy.Domain) uzantılı kurum adresiniz.</small>
+                <span asp-validation-for="Email"></span>
+            </div>
+            <div class="full-width">
+                <label asp-for="Password"></label>
+                <div class="password-field">
+                    <input asp-for="Password" autocomplete="current-password" required />
+                    <button type="button" class="button quiet password-toggle" data-password-toggle
+                            aria-controls="Password" aria-label="Şifreyi göster" hidden>Göster</button>
+                </div>
+                <span asp-validation-for="Password"></span>
+            </div>
+            <div class="account-actions full-width">
+                <button type="submit">Yönetici olarak giriş yap</button>
+                <a asp-action="AdminRegister">Yönetici hesabı oluştur</a>
+                <a asp-action="Login">Öğrenci girişine dön</a>
+            </div>
+        </form>
+    </section>
+</div>
+
+@section Scripts {
+    <script src="~/js/password-toggle.js" asp-append-version="true"></script>
+}

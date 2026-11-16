@@ -12,7 +12,7 @@ internal static class AdminSetup
         string name = Console.ReadLine() ?? "";
         Console.Write("Yönetici T.C. kimlik numarası: ");
         string identity = Console.ReadLine() ?? "";
-        Console.Write("Yönetici e-postası: ");
+        Console.Write($"Öğretim görevlisi e-postası (@{StajEvrakSistemi.Core.FacultyEmailPolicy.Domain}): ");
         string email = Console.ReadLine() ?? "";
         Console.Write("Yönetici şifresi: ");
         string password = ReadPassword();
@@ -21,7 +21,7 @@ internal static class AdminSetup
         try
         {
             auth.Register(new Admin(identity, name, email), password);
-            Console.WriteLine("İlk yönetici hesabı oluşturuldu.");
+            Console.WriteLine("Yönetici hesabı oluşturuldu.");
             return 0;
         }
         catch (Exception error) when (error is ArgumentException or InvalidOperationException or ForbiddenAccessException)

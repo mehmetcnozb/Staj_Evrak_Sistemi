@@ -38,6 +38,75 @@ public sealed class AccountController(AuthService auth, SessionManager sessions)
             return View(input);
         }
 
+        // Yönetici hesabı öğrenci ekranından oturum açamaz.
+        if (user.Role == UserRole.Admin)
+        {
+            ModelState.AddModelError(string.Empty, "Yönetici hesapları yönetici girişi ekranını kullanır.");
+            return View(input);
+        }
+
+        await SignInAsync(user);
+        return Url.IsLocalUrl(input.ReturnUrl) ? LocalRedirect(input.ReturnUrl!) : RedirectToAction(nameof(Index));
+    }
+
+    [HttpGet]
+    public IActionResult AdminLogin(string? returnUrl) => View(new AdminLoginInput { ReturnUrl = returnUrl });
+
+    [HttpPost]
+    public async Task<IActionResult> AdminLogin(AdminLoginInput input)
+    {
+        if (!ModelState.IsValid)
+            return View(input);
+
+        var result = auth.LoginAdmin(input.Email, input.Password);
+        if (result.User is not { } user)
+        {
+            ModelState.AddModelError(string.Empty, result.Status == LoginStatus.LockedOut
+                ? "Hesap kilitli."
+                : "E-posta veya şifre hatalı.");
+            return View(input);
+        }
+
+        await SignInAsync(user);
+        return Url.IsLocalUrl(input.ReturnUrl) ? LocalRedirect(input.ReturnUrl!) : RedirectToAction("Index", "Admin");
+    }
+
+    [HttpGet]
+    public IActionResult AdminRegister() => View(new AdminRegistrationInput());
+
+    [HttpPost]
+    public IActionResult AdminRegister(AdminRegistrationInput input)
+    {
+        const string identityField = nameof(AdminRegistrationInput.IdentityNumber);
+        if (ModelState.GetFieldValidationState(identityField) != ModelValidationState.Invalid
+            && GetIdentityNumberError(input.IdentityNumber, isForeign: false) is { } identityError)
+            ModelState.AddModelError(identityField, identityError);
+
+        const string emailField = nameof(AdminRegistrationInput.Email);
+        if (ModelState.GetFieldValidationState(emailField) != ModelValidationState.Invalid
+            && !FacultyEmailPolicy.IsFacultyEmail(input.Email))
+            ModelState.AddModelError(emailField, FacultyEmailPolicy.Requirement);
+
+        if (!ModelState.IsValid)
+            return View(input);
+
+        try
+        {
+            auth.Register(new Admin(input.IdentityNumber, input.FullName, input.Email), input.Password);
+            TempData["AccountMessage"] = "Yönetici hesabınız oluşturuldu. Giriş yapabilirsiniz.";
+            return RedirectToAction(nameof(AdminLogin));
+        }
+        catch (Exception error) when (error is ArgumentException or InvalidOperationException)
+        {
+            ModelState.AddModelError(string.Empty, error is InvalidOperationException
+                ? "Bu T.C. kimlik no veya e-posta ile zaten bir kayıt var."
+                : error.Message);
+            return View(input);
+        }
+    }
+
+    private async Task SignInAsync(User user)
+    {
         sessions.Logout(User.FindFirstValue(WebSession.SessionTokenClaim));
         var session = sessions.StartSession(user);
         var identity = new ClaimsIdentity(new[]
@@ -51,8 +120,6 @@ public sealed class AccountController(AuthService auth, SessionManager sessions)
         {
             ExpiresUtc = session.ExpiresAt
         });
-
-        return Url.IsLocalUrl(input.ReturnUrl) ? LocalRedirect(input.ReturnUrl!) : RedirectToAction(nameof(Index));
     }
 
     [HttpGet]
@@ -117,9 +184,10 @@ public sealed class AccountController(AuthService auth, SessionManager sessions)
     [Authorize, HttpPost]
     public async Task<IActionResult> Logout()
     {
+        bool wasAdmin = User.IsInRole(RolePermissions.RoleAdmin);
         sessions.Logout(User.FindFirstValue(WebSession.SessionTokenClaim));
         await HttpContext.SignOutAsync();
-        return RedirectToAction(nameof(Login));
+        return RedirectToAction(wasAdmin ? nameof(AdminLogin) : nameof(Login));
     }
 
     [IgnoreAntiforgeryToken]

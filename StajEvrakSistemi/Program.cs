@@ -1,17 +1,27 @@
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Mvc;
+using StajEvrakSistemi.Core;
 using StajEvrakSistemi.Data;
 using StajEvrakSistemi.Services;
 using StajEvrakSistemi.Web;
 
 bool createAdmin = args is ["--create-admin"];
-var builder = WebApplication.CreateBuilder(createAdmin ? [] : args);
+bool resetAdmins = args is ["--reset-admins"];
+var builder = WebApplication.CreateBuilder(createAdmin || resetAdmins ? [] : args);
+FacultyEmailPolicy.Domain = builder.Configuration["AdminEmailDomain"] ?? FacultyEmailPolicy.DefaultDomain;
 string dataDirectory = Path.GetFullPath(builder.Configuration["StajDataDirectory"] ?? ".",
     builder.Environment.ContentRootPath);
 Directory.CreateDirectory(dataDirectory);
 var database = new DatabaseManager(Path.Combine(dataDirectory, DatabaseManager.DefaultDatabaseFile));
 database.InitializeDatabase();
+
+if (resetAdmins)
+{
+    int removed = new AuthService(database).DeleteAllAdmins();
+    Console.WriteLine($"{removed} yönetici hesabı silindi. Yeni hesaplar /Account/AdminRegister ekranından açılır.");
+    return;
+}
 
 if (createAdmin)
 {
@@ -38,6 +48,15 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         options.LoginPath = "/Account/Login";
         options.SlidingExpiration = false;
         options.Events.OnValidatePrincipal = WebSession.ValidateAsync;
+        // Yönetici sayfasına girişsiz gelen kişi yönetici girişine yönlenir.
+        options.Events.OnRedirectToLogin = context =>
+        {
+            string target = context.RedirectUri;
+            if (context.Request.Path.StartsWithSegments("/Admin"))
+                target = target.Replace("/Account/Login", "/Account/AdminLogin", StringComparison.Ordinal);
+            context.Response.Redirect(target);
+            return Task.CompletedTask;
+        };
         options.Events.OnRedirectToAccessDenied = context =>
         {
             context.Response.StatusCode = StatusCodes.Status403Forbidden;

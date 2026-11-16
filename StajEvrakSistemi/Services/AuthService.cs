@@ -30,10 +30,10 @@ public class AuthService
 
     /// <summary>
     /// Şifreyi hashleyip kullanıcıyı veritabanına kaydeder ve oluşan Id'yi döndürür.
-    /// Öğrenciler hesaplarını kendileri açabilir. Yönetici hesabını yalnızca bir yönetici (createdBy)
-    /// oluşturabilir; sistemde hiç yönetici yoksa ilk yönetici kendiliğinden oluşturulabilir.
+    /// Öğrenciler hesaplarını kendileri açabilir. Yönetici hesabı yalnızca öğretim görevlisi
+    /// e-postasıyla açılır (bkz. <see cref="FacultyEmailPolicy"/>).
     /// </summary>
-    /// <exception cref="ForbiddenAccessException">Öğrenci dışı bir hesap yetkisiz biri tarafından açılmaya çalışılıyor.</exception>
+    /// <exception cref="ArgumentException">Yönetici e-postası öğretim görevlisi adresi değil.</exception>
     public int Register(User user, string password, User? createdBy = null)
     {
         ArgumentNullException.ThrowIfNull(user);
@@ -88,7 +88,28 @@ public class AuthService
     /// E-posta, kimlik veya ogrenci numarasi ile giris yapar. Bes hatali denemede hesap kilitlenir.
     /// Başarısız her deneme FailedLoginLogs tablosuna yazılır.
     /// </summary>
-    public LoginResult Login(string emailOrIdentity, string password)
+    public LoginResult Login(string emailOrIdentity, string password) =>
+        Login(emailOrIdentity, password, adminOnly: false);
+
+    /// <summary>
+    /// Yönetici girişi. Yalnızca yönetici hesabı ve yalnızca e-posta ile giriş yapılır.
+    /// Kilit ve başarısız giriş kaydı öğrenci girişiyle aynıdır.
+    /// </summary>
+    public LoginResult LoginAdmin(string email, string password) =>
+        Login(email, password, adminOnly: true);
+
+    /// <summary>
+    /// Bütün yönetici hesaplarını siler. Başvurular ve belgeler kalır, yöneticiye bağlı alanlar boşalır.
+    /// </summary>
+    public int DeleteAllAdmins()
+    {
+        using var connection = _database.GetConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = "DELETE FROM Users WHERE Role = 'Admin';";
+        return command.ExecuteNonQuery();
+    }
+
+    private LoginResult Login(string emailOrIdentity, string password, bool adminOnly)
     {
         if (string.IsNullOrWhiteSpace(emailOrIdentity) || string.IsNullOrEmpty(password))
             return new LoginResult(LoginStatus.InvalidCredentials);
@@ -97,7 +118,7 @@ public class AuthService
         string identifier = emailOrIdentity.Trim();
         DateTime now = _utcNow();
 
-        var found = FindUser(connection, identifier);
+        var found = FindUser(connection, identifier, adminOnly);
         if (found is null)
         {
             LogFailedLogin(connection, null, null, identifier, FailedLoginReason.UnknownUser, now);
@@ -192,31 +213,25 @@ public class AuthService
         if (user.Role == UserRole.Student)
             return;
 
-        // Sistemde hiç yönetici yoksa ilk yönetici hesabı açılabilir.
-        if (user.Role == UserRole.Admin && CountAdmins(connection) == 0)
-            return;
+        // Yönetici hesabı, kim açarsa açsın, öğretim görevlisi e-postası ister.
+        if (!FacultyEmailPolicy.IsFacultyEmail(user.Email))
+            throw new ArgumentException(FacultyEmailPolicy.Requirement, nameof(user));
 
         if (createdBy is null)
-            throw new ForbiddenAccessException(
-                "403 Yetkisiz Erişim: Yalnızca öğrenci hesabı kendi kendine açılabilir; yönetici hesabını yalnızca bir yönetici oluşturabilir.");
+            return;
 
         UserGuard.EnsureUserInDatabase(connection, null, createdBy);
         if (!createdBy.HasPermission(Permission.ManageUsers))
             throw new ForbiddenAccessException("403 Yetkisiz Erişim: Kullanıcı oluşturma yetkiniz yok.");
     }
 
-    private static long CountAdmins(SqliteConnection connection)
-    {
-        using var command = connection.CreateCommand();
-        command.CommandText = "SELECT COUNT(*) FROM Users WHERE Role = 'Admin';";
-        return (long)command.ExecuteScalar()!;
-    }
-
-    private static (User User, string PasswordHash)? FindUser(SqliteConnection connection, string identifier)
+    private static (User User, string PasswordHash)? FindUser(SqliteConnection connection, string identifier, bool adminOnly)
     {
         using var command = connection.CreateCommand();
         // Aynı değer bir kimlik numarası ve bir öğrenci numarasıysa mevcut kimlik girişini koru.
-        command.CommandText = $"""
+        command.CommandText = adminOnly
+            ? $"SELECT {SelectUserColumns} FROM Users WHERE Role = 'Admin' AND Email = $email LIMIT 1;"
+            : $"""
             SELECT {SelectUserColumns} FROM Users
             WHERE Email = $email OR IdentityNumber = $identifier
                 OR (Role = 'Student' AND StudentNumber = $identifier)

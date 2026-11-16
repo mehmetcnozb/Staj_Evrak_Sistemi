@@ -10,7 +10,8 @@
         </div>
     </div>
     <section class="card account-card login-card" aria-labelledby="login-heading">
-        <h1 id="login-heading">Giriş yap</h1>
+        <p><span class="status-badge">Öğrenci</span></p>
+        <h1 id="login-heading">Öğrenci girişi</h1>
         @if (TempData["AccountMessage"] is string message)
         {
             <p class="notice success" role="status">@message</p>
@@ -35,6 +36,7 @@
             <div class="account-actions full-width">
                 <button type="submit">Giriş yap</button>
                 <a asp-action="Register">Öğrenci hesabı oluştur</a>
+                <a asp-action="AdminLogin">Yönetici girişi</a>
             </div>
         </form>
     </section>
